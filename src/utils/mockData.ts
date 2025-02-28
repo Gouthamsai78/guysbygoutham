@@ -1,0 +1,188 @@
+
+import { User, Post, MessageThread, Message } from "@/types";
+
+export const mockUsers: User[] = [
+  {
+    id: "1",
+    username: "alex_awesome",
+    name: "Alex Johnson",
+    email: "alex@example.com",
+    bio: "Just living life one day at a time ✌️",
+    profilePicture: "https://i.pravatar.cc/150?img=1",
+    followersCount: 523,
+    followingCount: 235,
+  },
+  {
+    id: "2",
+    username: "sammy_cool",
+    name: "Samantha Williams",
+    email: "sammy@example.com",
+    bio: "Photography | Music | Travel",
+    profilePicture: "https://i.pravatar.cc/150?img=5",
+    followersCount: 1024,
+    followingCount: 567,
+  },
+  {
+    id: "3",
+    username: "taylor_swift",
+    name: "Taylor Davis",
+    email: "taylor@example.com",
+    bio: "Living my best life 💯",
+    profilePicture: "https://i.pravatar.cc/150?img=9",
+    followersCount: 843,
+    followingCount: 432,
+  },
+  {
+    id: "4",
+    username: "miketheman",
+    name: "Mike Robinson",
+    email: "mike@example.com",
+    bio: "Sports enthusiast and weekend warrior",
+    profilePicture: "https://i.pravatar.cc/150?img=3",
+    followersCount: 321,
+    followingCount: 156,
+  },
+  {
+    id: "5",
+    username: "emma_styles",
+    name: "Emma Thompson",
+    email: "emma@example.com",
+    bio: "Fashion | Beauty | Lifestyle",
+    profilePicture: "https://i.pravatar.cc/150?img=7",
+    followersCount: 723,
+    followingCount: 289,
+  },
+];
+
+export const mockPosts: Post[] = [
+  {
+    id: "1",
+    userId: "2",
+    user: mockUsers[1],
+    content: "Just had the most amazing day at the beach! The sunset was incredible. Who else loves beach days? 🏖️",
+    imageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+    createdAt: "2023-06-15T14:23:45Z",
+    likesCount: 127,
+    commentsCount: 24,
+    isLiked: false,
+  },
+  {
+    id: "2",
+    userId: "3",
+    user: mockUsers[2],
+    content: "New music coming soon! Can't wait to share what I've been working on for the past few months.",
+    createdAt: "2023-06-14T09:12:32Z",
+    likesCount: 89,
+    commentsCount: 15,
+    isLiked: true,
+  },
+  {
+    id: "3",
+    userId: "5",
+    user: mockUsers[4],
+    content: "Check out my latest fashion haul! All these pieces are perfect for summer. What's your favorite summer style?",
+    imageUrl: "https://images.unsplash.com/photo-1469334031218-e382a71b716b",
+    createdAt: "2023-06-13T18:45:10Z",
+    likesCount: 215,
+    commentsCount: 42,
+    isLiked: false,
+  },
+  {
+    id: "4",
+    userId: "4",
+    user: mockUsers[3],
+    content: "Just finished an amazing hike! The views were incredible. Who else loves outdoor adventures?",
+    imageUrl: "https://images.unsplash.com/photo-1551632811-561732d1e306",
+    createdAt: "2023-06-12T11:34:21Z",
+    likesCount: 73,
+    commentsCount: 8,
+    isLiked: true,
+  },
+  {
+    id: "5",
+    userId: "1",
+    user: mockUsers[0],
+    content: "Working on some new projects! Can't wait to share more details soon. Stay tuned!",
+    createdAt: "2023-06-11T15:56:43Z",
+    likesCount: 45,
+    commentsCount: 5,
+    isLiked: false,
+  },
+  {
+    id: "6",
+    userId: "2",
+    user: mockUsers[1],
+    content: "Just got this amazing shot on my new camera! Photography is all about capturing the perfect moment.",
+    imageUrl: "https://images.unsplash.com/photo-1542038784456-1ea8e935640e",
+    createdAt: "2023-06-10T20:12:38Z",
+    likesCount: 156,
+    commentsCount: 29,
+    isLiked: false,
+  },
+];
+
+export const mockMessages: Message[] = [
+  {
+    id: "1",
+    senderId: "2",
+    receiverId: "1",
+    content: "Hey, how's it going?",
+    createdAt: "2023-06-15T09:23:12Z",
+    read: true,
+  },
+  {
+    id: "2",
+    senderId: "1",
+    receiverId: "2",
+    content: "Not bad! Just working on some new stuff. How about you?",
+    createdAt: "2023-06-15T09:25:45Z",
+    read: true,
+  },
+  {
+    id: "3",
+    senderId: "2",
+    receiverId: "1",
+    content: "Same here. Want to hang out this weekend?",
+    createdAt: "2023-06-15T09:30:22Z",
+    read: true,
+  },
+  {
+    id: "4",
+    senderId: "3",
+    receiverId: "1",
+    content: "Loved your latest post! Where was that taken?",
+    createdAt: "2023-06-14T14:12:55Z",
+    read: false,
+  },
+];
+
+export const mockMessageThreads: MessageThread[] = [
+  {
+    id: "1",
+    participants: [mockUsers[0], mockUsers[1]],
+    lastMessage: mockMessages[2],
+    unreadCount: 0,
+  },
+  {
+    id: "2",
+    participants: [mockUsers[0], mockUsers[2]],
+    lastMessage: mockMessages[3],
+    unreadCount: 1,
+  },
+  {
+    id: "3",
+    participants: [mockUsers[0], mockUsers[3]],
+    lastMessage: {
+      id: "5",
+      senderId: "4",
+      receiverId: "1",
+      content: "Thanks for the follow! What kind of content do you create?",
+      createdAt: "2023-06-13T18:45:32Z",
+      read: true,
+    },
+    unreadCount: 0,
+  },
+];
+
+// Current user for mock authentication
+export const currentUser: User = mockUsers[0];
