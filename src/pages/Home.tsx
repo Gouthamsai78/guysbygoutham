@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,55 +12,95 @@ const Home: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('posts')
-          .select(`
+  const fetchPosts = async () => {
+    setLoading(true);
+    try {
+      // Fetch posts
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          id, 
+          content, 
+          created_at, 
+          image_url, 
+          video_url, 
+          user_id,
+          profiles!posts_user_id_fkey (
             id, 
-            content, 
-            created_at, 
-            image_url, 
-            video_url, 
-            user_id,
-            profiles!posts_user_id_fkey (
-              id, 
-              username, 
-              full_name, 
-              profile_picture
-            )
-          `)
-          .order('created_at', { ascending: false });
+            username, 
+            full_name, 
+            profile_picture
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-        if (error) throw error;
+      if (postsError) throw postsError;
 
-        const formattedPosts = data.map(post => ({
-          id: post.id,
-          content: post.content,
-          createdAt: post.created_at,
-          image_url: post.image_url,
-          video_url: post.video_url,
-          userId: post.user_id,
-          user: {
-            id: post.profiles.id,
-            username: post.profiles.username,
-            name: post.profiles.full_name,
-            profilePicture: post.profiles.profile_picture,
+      // Fetch likes count for each post
+      const postsWithDetails = await Promise.all(
+        postsData.map(async (post) => {
+          // Get likes count
+          const { count: likesCount, error: likesError } = await supabase
+            .from('likes')
+            .select('id', { count: 'exact', head: true })
+            .eq('post_id', post.id);
+
+          if (likesError) console.error("Error fetching likes:", likesError);
+
+          // Get comments count
+          const { count: commentsCount, error: commentsError } = await supabase
+            .from('comments')
+            .select('id', { count: 'exact', head: true })
+            .eq('post_id', post.id);
+
+          if (commentsError) console.error("Error fetching comments:", commentsError);
+
+          // Check if current user liked the post
+          let isLiked = false;
+          if (user) {
+            const { data: likeData, error: likeError } = await supabase
+              .from('likes')
+              .select('id')
+              .eq('post_id', post.id)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (!likeError && likeData) {
+              isLiked = true;
+            }
           }
-        }));
-        
-        setPosts(formattedPosts);
-      } catch (error: any) {
-        console.error("Error fetching posts:", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
 
+          return {
+            id: post.id,
+            content: post.content,
+            createdAt: post.created_at,
+            imageUrl: post.image_url,
+            videoUrl: post.video_url,
+            userId: post.user_id,
+            user: {
+              id: post.profiles.id,
+              username: post.profiles.username,
+              name: post.profiles.full_name,
+              profilePicture: post.profiles.profile_picture,
+            },
+            likesCount: likesCount || 0,
+            commentsCount: commentsCount || 0,
+            isLiked
+          };
+        })
+      );
+      
+      setPosts(postsWithDetails);
+    } catch (error: any) {
+      console.error("Error fetching posts:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [user]);
   
   const handlePostCreated = () => {
     fetchPosts();
