@@ -1,11 +1,13 @@
+
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, MessageSquare, Bell, User, PenSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import SearchBar from "./SearchBar";
 
-const Navbar: React.FC = () => {
+const CustomNavbar: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -34,6 +36,11 @@ const Navbar: React.FC = () => {
         <Link to="/" className="font-bold text-xl text-guys-primary">
           Guys
         </Link>
+
+        <div className="hidden md:block flex-1 mx-4">
+          <SearchBar />
+        </div>
+
         <div className="flex items-center gap-4">
           <Link
             to="/home"
@@ -76,12 +83,15 @@ const Navbar: React.FC = () => {
             className="bg-guys-primary text-white hover:bg-guys-secondary"
           >
             <PenSquare className="h-4 w-4 mr-2" />
-            Create Post
+            <span className="hidden md:inline">Create Post</span>
           </Button>
         </div>
+      </div>
+      <div className="md:hidden px-4 py-2 bg-white border-t border-gray-200">
+        <SearchBar />
       </div>
     </header>
   );
 };
 
-export default Navbar;
+export default CustomNavbar;

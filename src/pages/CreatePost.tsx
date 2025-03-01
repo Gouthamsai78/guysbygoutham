@@ -1,13 +1,14 @@
 
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Image, Video, Smile, X, ArrowLeft } from "lucide-react";
+import { Image, Video, Smile, X, ArrowLeft, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
+import { Input } from "@/components/ui/input";
 
 const CreatePost: React.FC = () => {
   const { user } = useAuth();
@@ -71,21 +72,19 @@ const CreatePost: React.FC = () => {
         const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
         
-        // Create bucket if it doesn't exist
-        const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('post-media');
-        if (bucketError && bucketError.message.includes('The resource was not found')) {
-          await supabase.storage.createBucket('post-media', {
-            public: true,
-            fileSizeLimit: 50 * 1024 * 1024, // 50MB
-          });
-        }
+        console.log("Uploading to bucket: post-media");
         
         // Upload file
-        const { error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('post-media')
           .upload(filePath, mediaFile);
           
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          throw uploadError;
+        }
+        
+        console.log("Upload successful:", uploadData);
         
         // Get public URL
         const { data: urlData } = supabase.storage
@@ -93,17 +92,19 @@ const CreatePost: React.FC = () => {
           .getPublicUrl(filePath);
           
         mediaUrl = urlData.publicUrl;
+        console.log("Media URL:", mediaUrl);
       }
       
       // Create post
-      const { error: postError } = await supabase
+      const { data: postData, error: postError } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
           content,
           ...(mediaType === 'image' ? { image_url: mediaUrl } : {}),
           ...(mediaType === 'video' ? { video_url: mediaUrl } : {})
-        });
+        })
+        .select();
         
       if (postError) throw postError;
       
@@ -112,8 +113,12 @@ const CreatePost: React.FC = () => {
         description: "Your post has been published successfully",
       });
       
-      // Navigate back to home
-      navigate('/home');
+      // Navigate to the newly created post
+      if (postData && postData.length > 0) {
+        navigate(`/post/${postData[0].id}`);
+      } else {
+        navigate('/home');
+      }
       
     } catch (error: any) {
       console.error('Error creating post:', error);

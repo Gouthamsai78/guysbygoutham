@@ -12,7 +12,8 @@ import Profile from "./pages/Profile";
 import Messages from "./pages/Messages";
 import CreatePost from "./pages/CreatePost";
 import NotFound from "./pages/NotFound";
-import PostDetail from "./pages/PostDetail";
+import EnhancedPostDetail from "./pages/EnhancedPostDetail";
+import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -55,7 +56,8 @@ const AppRoutes = () => {
       <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
       <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
-      <Route path="/post/:id" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
+      <Route path="/post/:id" element={<ProtectedRoute><EnhancedPostDetail /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
