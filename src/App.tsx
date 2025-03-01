@@ -54,6 +54,7 @@ const AppRoutes = () => {
       <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
       <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+      <Route path="/post/:id" element={<ProtectedRoute><Home /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

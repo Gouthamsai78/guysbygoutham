@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { Heart, MessageCircle, Share2, MoreHorizontal } from "lucide-react";
