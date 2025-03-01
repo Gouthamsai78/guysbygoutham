@@ -29,7 +29,9 @@ const Home: React.FC = () => {
             id, 
             username, 
             full_name, 
-            profile_picture
+            profile_picture,
+            followers_count,
+            following_count
           )
         `)
         .order('created_at', { ascending: false });
@@ -82,6 +84,9 @@ const Home: React.FC = () => {
               username: post.profiles.username,
               name: post.profiles.full_name,
               profilePicture: post.profiles.profile_picture,
+              email: '', // Add required field from User type
+              followersCount: post.profiles.followers_count || 0,
+              followingCount: post.profiles.following_count || 0
             },
             likesCount: likesCount || 0,
             commentsCount: commentsCount || 0,
