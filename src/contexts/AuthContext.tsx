@@ -1,47 +1,115 @@
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User } from "@/types";
-import { currentUser, mockUsers } from "@/utils/mockData";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 type AuthContextType = {
   user: User | null;
+  session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(currentUser); // For demo, start authenticated
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      setIsLoading(true);
+      
+      // Get current session
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error("Error getting session:", error);
+        setIsLoading(false);
+        return;
+      }
+
+      if (session) {
+        setSession(session);
+        await fetchUserProfile(session.user.id);
+      }
+      
+      setIsLoading(false);
+      
+      // Set up auth state change listener
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, newSession) => {
+          setSession(newSession);
+          
+          if (event === 'SIGNED_IN' && newSession) {
+            await fetchUserProfile(newSession.user.id);
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+          }
+        }
+      );
+      
+      // Cleanup subscription on unmount
+      return () => {
+        subscription.unsubscribe();
+      };
+    };
+    
+    initializeAuth();
+  }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setUser({
+          id: data.id,
+          username: data.username,
+          name: data.full_name || data.username,
+          email: "",  // Email not stored in profiles for privacy/security
+          bio: data.bio || "",
+          profilePicture: data.profile_picture,
+          followersCount: data.followers_count,
+          followingCount: data.following_count,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      // Find user with matching email (in a real app, this would be a server call)
-      const foundUser = mockUsers.find(u => u.email === email);
+      if (error) throw error;
       
-      if (foundUser && password === "password") { // For demo, any password works
-        setUser(foundUser);
-        toast({
-          title: "Success",
-          description: "You have been logged in",
-        });
-      } else {
-        throw new Error("Invalid credentials");
-      }
-    } catch (error) {
+      toast({
+        title: "Success",
+        description: "You have been logged in",
+      });
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Invalid email or password",
+        description: error.message || "Invalid email or password",
         variant: "destructive",
       });
       throw error;
@@ -53,34 +121,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (email: string, username: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Check if username is taken
+      const { data: existingUser, error: usernameError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .maybeSingle();
       
-      // Check if email already exists (in a real app, this would be a server call)
-      if (mockUsers.some(u => u.email === email)) {
-        throw new Error("Email already exists");
+      if (usernameError) throw usernameError;
+      
+      if (existingUser) {
+        throw new Error("Username is already taken");
       }
       
-      // Create new user (in a real app, this would be a server call)
-      const newUser: User = {
-        id: Math.random().toString(),
-        username,
-        name: username.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+      // Register user
+      const { data, error } = await supabase.auth.signUp({
         email,
-        bio: "",
-        followersCount: 0,
-        followingCount: 0,
-      };
+        password,
+        options: {
+          data: {
+            username,
+            full_name: username.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+          }
+        }
+      });
       
-      setUser(newUser);
+      if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Your account has been created",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create account",
+        description: error.message || "Failed to create account",
         variant: "destructive",
       });
       throw error;
@@ -89,18 +164,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    toast({
-      title: "Logged out",
-      description: "You have been logged out",
-    });
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      toast({
+        title: "Logged out",
+        description: "You have been logged out",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to log out",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        session,
         isAuthenticated: !!user,
         isLoading,
         login,
