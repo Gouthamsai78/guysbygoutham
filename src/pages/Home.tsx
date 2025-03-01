@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import PostList from "@/components/PostList";
 import CreatePost from "@/components/CreatePost";
 import { Post } from "@/types";
-import Navbar from "@/components/Navbar";
+import CustomNavbar from "@/components/CustomNavbar";
 
 const Home: React.FC = () => {
   const { user } = useAuth();
@@ -113,11 +113,13 @@ const Home: React.FC = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <Navbar />
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <CustomNavbar />
+      <div className="max-w-2xl mx-auto p-4 md:py-6">
         {user && <CreatePost onPostCreated={handlePostCreated} />}
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading posts...</div>
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-guys-primary"></div>
+          </div>
         ) : (
           <PostList posts={posts} />
         )}
