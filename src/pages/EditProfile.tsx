@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import ProfileEdit from "@/components/ProfileEdit";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const EditProfile: React.FC = () => {
   const navigate = useNavigate();
@@ -17,32 +18,43 @@ const EditProfile: React.FC = () => {
     name: string;
     username: string;
     bio: string;
-    profilePicture?: File | null;
+    profilePicture?: string;
+    address?: string;
   }) => {
     if (!user) return;
     
     setIsSubmitting(true);
     
     try {
-      // In a real app, this would upload the image to storage and update the user profile
-      // For now, we'll simulate a successful update
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Update profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          username: profileData.username,
+          full_name: profileData.name,
+          bio: profileData.bio,
+          profile_picture: profileData.profilePicture,
+          address: profileData.address
+        })
+        .eq('id', user.id);
       
-      // This would call the actual update function from the auth context
+      if (error) throw error;
+      
+      // Update local user state
       if (updateUserProfile) {
         await updateUserProfile({
           ...user,
           name: profileData.name,
           username: profileData.username,
           bio: profileData.bio,
-          // In a real app, this would be the URL of the uploaded image
-          profilePicture: user.profilePicture,
+          profilePicture: profileData.profilePicture || user.profilePicture,
+          address: profileData.address
         });
       }
       
       toast.success("Profile updated successfully");
       navigate(`/profile/${user.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
       toast.error("Failed to update profile. Please try again.");
     } finally {

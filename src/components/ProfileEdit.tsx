@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Camera } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProfileEditProps {
   onClose: () => void;
@@ -14,7 +15,9 @@ interface ProfileEditProps {
     name: string;
     username: string;
     bio: string;
-    profilePicture?: File | null;
+    profilePicture?: string;
+    address?: string;
+    joinDate?: string;
   }) => void;
 }
 
@@ -24,10 +27,12 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ onClose, onSave }) => {
   const [name, setName] = useState(user?.name || "");
   const [username, setUsername] = useState(user?.username || "");
   const [bio, setBio] = useState(user?.bio || "");
+  const [address, setAddress] = useState("New York, USA"); // Default address
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(user?.profilePicture || null);
+  const [isUploading, setIsUploading] = useState(false);
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (file) {
       setProfilePicture(file);
@@ -39,7 +44,42 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ onClose, onSave }) => {
     }
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const uploadProfilePicture = async (): Promise<string | null> => {
+    if (!profilePicture || !user) return user?.profilePicture || null;
+    
+    setIsUploading(true);
+    try {
+      // Create a unique file path
+      const fileExt = profilePicture.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+      
+      // Upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(filePath, profilePicture);
+        
+      if (uploadError) {
+        console.error("Error uploading profile picture:", uploadError);
+        throw uploadError;
+      }
+      
+      // Get the public URL
+      const { data: urlData } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(filePath);
+        
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      toast.error("Failed to upload profile picture");
+      return user?.profilePicture || null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Basic validation
@@ -48,12 +88,21 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ onClose, onSave }) => {
       return;
     }
     
-    onSave({
-      name,
-      username,
-      bio,
-      profilePicture,
-    });
+    try {
+      // Upload profile picture if changed
+      const profilePictureUrl = await uploadProfilePicture();
+      
+      onSave({
+        name,
+        username,
+        bio,
+        profilePicture: profilePictureUrl || user?.profilePicture,
+        address
+      });
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      toast.error("Failed to save profile");
+    }
   };
   
   return (
@@ -111,6 +160,18 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ onClose, onSave }) => {
           </div>
           
           <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+              Address
+            </label>
+            <Input
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Your location"
+            />
+          </div>
+          
+          <div>
             <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
               Bio
             </label>
@@ -128,8 +189,12 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ onClose, onSave }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-guys-primary text-white">
-              Save Changes
+            <Button 
+              type="submit" 
+              className="bg-guys-primary text-white"
+              disabled={isUploading}
+            >
+              {isUploading ? "Uploading..." : "Save Changes"}
             </Button>
           </div>
         </div>

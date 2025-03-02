@@ -40,6 +40,55 @@ const CreatePost: React.FC<CreatePostProps> = ({ onPostCreated }) => {
     setMediaType(null);
   };
 
+  const uploadMedia = async (): Promise<string | null> => {
+    if (!mediaFile || !user) return null;
+    
+    try {
+      // Create a unique file path
+      const fileExt = mediaFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+      
+      // Check if bucket exists, create if not
+      const { error: bucketError } = await supabase.storage
+        .getBucket('post-media');
+      
+      if (bucketError) {
+        // Bucket doesn't exist, create it
+        const { error: createError } = await supabase.storage
+          .createBucket('post-media', { public: true });
+          
+        if (createError) {
+          console.error("Error creating bucket:", createError);
+          throw createError;
+        }
+      }
+      
+      // Upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('post-media')
+        .upload(filePath, mediaFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+        
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw uploadError;
+      }
+      
+      // Get the public URL
+      const { data: urlData } = supabase.storage
+        .from('post-media')
+        .getPublicUrl(filePath);
+        
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("Error uploading media:", error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -68,42 +117,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ onPostCreated }) => {
       
       // Upload media if exists
       if (mediaFile) {
-        const fileExt = mediaFile.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
-        
-        console.log("Uploading to bucket: post-media");
-        
-        // Create post-media bucket if it doesn't exist
-        const { error: storageError } = await supabase.storage.createBucket('post-media', {
-          public: true,
-          fileSizeLimit: 52428800, // 50MB
-        });
-        
-        if (storageError && storageError.message !== 'Bucket already exists') {
-          console.error("Storage bucket error:", storageError);
-          throw storageError;
-        }
-        
-        // Upload file
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('post-media')
-          .upload(filePath, mediaFile);
-          
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
-          throw uploadError;
-        }
-        
-        console.log("Upload successful:", uploadData);
-        
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from('post-media')
-          .getPublicUrl(filePath);
-          
-        mediaUrl = urlData.publicUrl;
-        console.log("Media URL:", mediaUrl);
+        mediaUrl = await uploadMedia();
       }
       
       // Create post
@@ -161,7 +175,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ onPostCreated }) => {
             placeholder="What's on your mind?"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="guys-input resize-none h-20 rounded-xl focus:border-guys-primary transition-all"
+            className="guys-input resize-none h-20 rounded-xl focus:border-guys-primary transition-all w-full p-2 border border-gray-300"
           />
           
           {mediaPreview && (

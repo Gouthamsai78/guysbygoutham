@@ -8,6 +8,8 @@ export interface User {
   profilePicture?: string;
   followersCount: number;
   followingCount: number;
+  address?: string;
+  joinDate?: string;
 }
 
 export interface Post {

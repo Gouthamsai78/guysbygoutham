@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +14,9 @@ type AuthContextType = {
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUserProfile: (updatedUser: User) => Promise<void>;
+  followUser: (userIdToFollow: string) => Promise<void>;
+  unfollowUser: (userIdToUnfollow: string) => Promise<void>;
+  isFollowing: (userId: string) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,6 +80,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       
       if (data) {
+        const joinDate = new Date(data.created_at || Date.now());
+        const formattedJoinDate = joinDate.toLocaleDateString('en-US', { 
+          month: 'long', 
+          year: 'numeric' 
+        });
+        
         setUser({
           id: data.id,
           username: data.username,
@@ -83,8 +93,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           email: "",  // Email not stored in profiles for privacy/security
           bio: data.bio || "",
           profilePicture: data.profile_picture,
-          followersCount: data.followers_count,
-          followingCount: data.following_count,
+          followersCount: data.followers_count || 0,
+          followingCount: data.following_count || 0,
+          address: data.address || "",
+          joinDate: formattedJoinDate
         });
       }
     } catch (error) {
@@ -187,7 +199,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("User not authenticated");
       }
       
-      // For demonstration purposes, in a real app this would update the database
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -195,6 +206,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           full_name: updatedUser.name,
           bio: updatedUser.bio,
           profile_picture: updatedUser.profilePicture,
+          address: updatedUser.address
         })
         .eq('id', user.id);
       
@@ -217,6 +229,154 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     }
   };
+  
+  const followUser = async (userIdToFollow: string) => {
+    try {
+      if (!user || !user.id) {
+        throw new Error("User not authenticated");
+      }
+      
+      if (user.id === userIdToFollow) {
+        throw new Error("You cannot follow yourself");
+      }
+      
+      // Check if already following
+      const { data: existingFollow, error: checkError } = await supabase
+        .from('follows')
+        .select('*')
+        .eq('follower_id', user.id)
+        .eq('following_id', userIdToFollow)
+        .maybeSingle();
+        
+      if (checkError) throw checkError;
+      
+      if (existingFollow) {
+        // Already following
+        return;
+      }
+      
+      // Create follow relationship
+      const { error: followError } = await supabase
+        .from('follows')
+        .insert({
+          follower_id: user.id,
+          following_id: userIdToFollow
+        });
+        
+      if (followError) throw followError;
+      
+      // Update followers count for followed user
+      const { error: updateFollowedError } = await supabase
+        .from('profiles')
+        .update({ followers_count: supabase.rpc('increment', { count: 1 }) })
+        .eq('id', userIdToFollow);
+        
+      if (updateFollowedError) throw updateFollowedError;
+      
+      // Update following count for current user
+      const { error: updateFollowerError } = await supabase
+        .from('profiles')
+        .update({ following_count: supabase.rpc('increment', { count: 1 }) })
+        .eq('id', user.id);
+        
+      if (updateFollowerError) throw updateFollowerError;
+      
+      // Update local state
+      setUser({
+        ...user,
+        followingCount: (user.followingCount || 0) + 1
+      });
+      
+      toast({
+        title: "Success",
+        description: "User followed successfully",
+      });
+    } catch (error: any) {
+      console.error("Error following user:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to follow user",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+  
+  const unfollowUser = async (userIdToUnfollow: string) => {
+    try {
+      if (!user || !user.id) {
+        throw new Error("User not authenticated");
+      }
+      
+      if (user.id === userIdToUnfollow) {
+        throw new Error("You cannot unfollow yourself");
+      }
+      
+      // Delete follow relationship
+      const { error: unfollowError } = await supabase
+        .from('follows')
+        .delete()
+        .eq('follower_id', user.id)
+        .eq('following_id', userIdToUnfollow);
+        
+      if (unfollowError) throw unfollowError;
+      
+      // Update followers count for unfollowed user
+      const { error: updateFollowedError } = await supabase
+        .from('profiles')
+        .update({ followers_count: supabase.rpc('decrement', { count: 1 }) })
+        .eq('id', userIdToUnfollow);
+        
+      if (updateFollowedError) throw updateFollowedError;
+      
+      // Update following count for current user
+      const { error: updateFollowerError } = await supabase
+        .from('profiles')
+        .update({ following_count: supabase.rpc('decrement', { count: 1 }) })
+        .eq('id', user.id);
+        
+      if (updateFollowerError) throw updateFollowerError;
+      
+      // Update local state
+      setUser({
+        ...user,
+        followingCount: Math.max((user.followingCount || 0) - 1, 0)
+      });
+      
+      toast({
+        title: "Success",
+        description: "User unfollowed successfully",
+      });
+    } catch (error: any) {
+      console.error("Error unfollowing user:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unfollow user",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+  
+  const isFollowing = async (userId: string): Promise<boolean> => {
+    try {
+      if (!user || !user.id) return false;
+      
+      const { data, error } = await supabase
+        .from('follows')
+        .select('*')
+        .eq('follower_id', user.id)
+        .eq('following_id', userId)
+        .maybeSingle();
+        
+      if (error) throw error;
+      
+      return !!data;
+    } catch (error) {
+      console.error("Error checking follow status:", error);
+      return false;
+    }
+  };
 
   return (
     <AuthContext.Provider
@@ -229,6 +389,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         register,
         logout,
         updateUserProfile,
+        followUser,
+        unfollowUser,
+        isFollowing,
       }}
     >
       {children}
