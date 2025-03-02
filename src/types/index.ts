@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   username: string;
@@ -10,6 +9,7 @@ export interface User {
   followingCount: number;
   address?: string;
   joinDate?: string;
+  postsCount?: number;
 }
 
 export interface Post {
