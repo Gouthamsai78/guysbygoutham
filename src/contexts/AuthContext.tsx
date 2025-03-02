@@ -268,7 +268,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Update followers count for followed user
       const { error: updateFollowedError } = await supabase
         .from('profiles')
-        .update({ followers_count: supabase.rpc('increment', { count: 1 }) })
+        .update({ followers_count: supabase.rpc('increment', { row_count: 1 }) })
         .eq('id', userIdToFollow);
         
       if (updateFollowedError) throw updateFollowedError;
@@ -276,7 +276,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Update following count for current user
       const { error: updateFollowerError } = await supabase
         .from('profiles')
-        .update({ following_count: supabase.rpc('increment', { count: 1 }) })
+        .update({ following_count: supabase.rpc('increment', { row_count: 1 }) })
         .eq('id', user.id);
         
       if (updateFollowerError) throw updateFollowerError;
@@ -324,7 +324,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Update followers count for unfollowed user
       const { error: updateFollowedError } = await supabase
         .from('profiles')
-        .update({ followers_count: supabase.rpc('decrement', { count: 1 }) })
+        .update({ followers_count: supabase.rpc('decrement', { row_count: 1 }) })
         .eq('id', userIdToUnfollow);
         
       if (updateFollowedError) throw updateFollowedError;
@@ -332,7 +332,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Update following count for current user
       const { error: updateFollowerError } = await supabase
         .from('profiles')
-        .update({ following_count: supabase.rpc('decrement', { count: 1 }) })
+        .update({ following_count: supabase.rpc('decrement', { row_count: 1 }) })
         .eq('id', user.id);
         
       if (updateFollowerError) throw updateFollowerError;

@@ -27,7 +27,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ onClose, onSave }) => {
   const [name, setName] = useState(user?.name || "");
   const [username, setUsername] = useState(user?.username || "");
   const [bio, setBio] = useState(user?.bio || "");
-  const [address, setAddress] = useState("New York, USA"); // Default address
+  const [address, setAddress] = useState(user?.address || "");
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(user?.profilePicture || null);
   const [isUploading, setIsUploading] = useState(false);
