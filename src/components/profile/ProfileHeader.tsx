@@ -1,9 +1,9 @@
-
 import React from "react";
 import { Camera, Edit, MapPin, Calendar, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { User } from "@/types";
+import ProfileStats from "@/components/profile/ProfileStats";
 
 interface ProfileHeaderProps {
   profileUser: User;

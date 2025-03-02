@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -267,17 +266,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Update followers count for followed user
       const { error: updateFollowedError } = await supabase
-        .from('profiles')
-        .update({ followers_count: supabase.rpc('increment', { row_count: 1 }) })
-        .eq('id', userIdToFollow);
+        .rpc('increment_followers_count', { user_id: userIdToFollow });
         
       if (updateFollowedError) throw updateFollowedError;
       
       // Update following count for current user
       const { error: updateFollowerError } = await supabase
-        .from('profiles')
-        .update({ following_count: supabase.rpc('increment', { row_count: 1 }) })
-        .eq('id', user.id);
+        .rpc('increment_following_count', { user_id: user.id });
         
       if (updateFollowerError) throw updateFollowerError;
       
@@ -323,17 +318,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Update followers count for unfollowed user
       const { error: updateFollowedError } = await supabase
-        .from('profiles')
-        .update({ followers_count: supabase.rpc('decrement', { row_count: 1 }) })
-        .eq('id', userIdToUnfollow);
+        .rpc('decrement_followers_count', { user_id: userIdToUnfollow });
         
       if (updateFollowedError) throw updateFollowedError;
       
       // Update following count for current user
       const { error: updateFollowerError } = await supabase
-        .from('profiles')
-        .update({ following_count: supabase.rpc('decrement', { row_count: 1 }) })
-        .eq('id', user.id);
+        .rpc('decrement_following_count', { user_id: user.id });
         
       if (updateFollowerError) throw updateFollowerError;
       
