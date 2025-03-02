@@ -163,6 +163,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           bio: string | null
           created_at: string | null
           followers_count: number | null
@@ -174,6 +175,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          address?: string | null
           bio?: string | null
           created_at?: string | null
           followers_count?: number | null
@@ -185,6 +187,7 @@ export type Database = {
           username: string
         }
         Update: {
+          address?: string | null
           bio?: string | null
           created_at?: string | null
           followers_count?: number | null
@@ -202,7 +205,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      decrement: {
+        Args: {
+          row_count: number
+        }
+        Returns: number
+      }
+      increment: {
+        Args: {
+          row_count: number
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
