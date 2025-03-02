@@ -9,7 +9,7 @@ import SearchBar from "./SearchBar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const CustomNavbar: React.FC = () => {
-  const { user, isAuthenticated, signOut } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -136,7 +136,7 @@ const CustomNavbar: React.FC = () => {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  onClick={() => signOut && signOut()}
+                  onClick={() => logout && logout()}
                   className="text-gray-500 hover:bg-gray-100 rounded-full p-2"
                 >
                   <LogOut className="h-5 w-5" />
