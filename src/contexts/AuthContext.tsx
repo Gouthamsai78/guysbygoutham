@@ -256,16 +256,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (followError) throw followError;
       
       const { error: updateFollowedError } = await supabase
-        .from('profiles')
-        .update({ followers_count: supabase.rpc('increment', { row_count: 1 }) })
-        .eq('id', userIdToFollow);
+        .rpc('increment', { row_count: 1 })
+        .then(async () => {
+          return supabase
+            .from('profiles')
+            .update({ followers_count: supabase.rpc('increment', { row_count: 1 }) })
+            .eq('id', userIdToFollow);
+        });
         
       if (updateFollowedError) throw updateFollowedError;
       
       const { error: updateFollowerError } = await supabase
-        .from('profiles')
-        .update({ following_count: supabase.rpc('increment', { row_count: 1 }) })
-        .eq('id', user.id);
+        .rpc('increment', { row_count: 1 })
+        .then(async () => {
+          return supabase
+            .from('profiles')
+            .update({ following_count: supabase.rpc('increment', { row_count: 1 }) })
+            .eq('id', user.id);
+        });
         
       if (updateFollowerError) throw updateFollowerError;
       
@@ -308,16 +316,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (unfollowError) throw unfollowError;
       
       const { error: updateFollowedError } = await supabase
-        .from('profiles')
-        .update({ followers_count: supabase.rpc('decrement', { row_count: 1 }) })
-        .eq('id', userIdToUnfollow);
+        .rpc('decrement', { row_count: 1 })
+        .then(async () => {
+          return supabase
+            .from('profiles')
+            .update({ followers_count: supabase.rpc('decrement', { row_count: 1 }) })
+            .eq('id', userIdToUnfollow);
+        });
         
       if (updateFollowedError) throw updateFollowedError;
       
       const { error: updateFollowerError } = await supabase
-        .from('profiles')
-        .update({ following_count: supabase.rpc('decrement', { row_count: 1 }) })
-        .eq('id', user.id);
+        .rpc('decrement', { row_count: 1 })
+        .then(async () => {
+          return supabase
+            .from('profiles')
+            .update({ following_count: supabase.rpc('decrement', { row_count: 1 }) })
+            .eq('id', user.id);
+        });
         
       if (updateFollowerError) throw updateFollowerError;
       
