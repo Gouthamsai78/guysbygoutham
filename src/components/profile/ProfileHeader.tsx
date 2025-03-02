@@ -1,16 +1,17 @@
+
 import React from "react";
-import { Camera, Edit, MapPin, Calendar, Users } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import { User } from "@/types";
-import ProfileStats from "@/components/profile/ProfileStats";
+import ProfileStats from "./ProfileStats";
+import { CalendarIcon, MapPinIcon, CheckIcon, PlusIcon, MailIcon, PencilIcon } from "lucide-react";
 
 interface ProfileHeaderProps {
   profileUser: User;
   followersCount: number;
   followStatus: boolean;
   isCurrentUserProfile: boolean;
-  handleFollowToggle: () => Promise<void>;
+  handleFollowToggle: () => void;
   handleEditProfile: () => void;
   handleSendMessage: () => void;
 }
@@ -24,87 +25,108 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   handleEditProfile,
   handleSendMessage,
 }) => {
+  const { user } = useAuth();
+  
   return (
     <div className="bg-white border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+        <div className="md:flex md:items-center md:justify-between">
           {/* Profile Picture */}
-          <div className="relative">
-            <Avatar className="h-32 w-32 rounded-full border-4 border-white shadow-md">
-              <AvatarImage src={profileUser.profilePicture} alt={profileUser.username} />
-              <AvatarFallback>{profileUser.username.substring(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            {isCurrentUserProfile && (
-              <button 
-                className="absolute bottom-0 right-0 bg-guys-primary text-white rounded-full p-2"
-                onClick={handleEditProfile}
-              >
-                <Camera className="h-5 w-5" />
-              </button>
-            )}
+          <div className="flex-shrink-0 md:mr-8">
+            <div className="h-40 w-40 rounded-full border-4 border-gray-200 overflow-hidden bg-gray-100">
+              {profileUser.profilePicture ? (
+                <img
+                  src={profileUser.profilePicture}
+                  alt={`${profileUser.name}'s profile`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-guys-light text-guys-dark font-bold text-4xl">
+                  {profileUser.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
           </div>
           
           {/* Profile Info */}
-          <div className="flex-grow text-center md:text-left">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-bold text-guys-dark">{profileUser.name}</h1>
-                <p className="text-gray-500">@{profileUser.username}</p>
-              </div>
-              <div className="mt-4 md:mt-0">
+          <div className="flex-1 mt-6 md:mt-0">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-2xl font-bold text-guys-dark">{profileUser.name}</h1>
+              
+              {/* Action Buttons */}
+              <div className="flex space-x-2">
                 {isCurrentUserProfile ? (
                   <Button 
-                    variant="outline" 
-                    className="border-guys-primary text-guys-primary"
                     onClick={handleEditProfile}
+                    variant="outline"
+                    className="flex items-center"
                   >
-                    <Edit className="h-4 w-4 mr-2" />
+                    <PencilIcon className="h-4 w-4 mr-2" />
                     Edit Profile
                   </Button>
                 ) : (
-                  <div className="space-x-2">
-                    <Button
-                      variant={followStatus ? "outline" : "default"}
-                      className={followStatus ? "border-guys-primary text-guys-primary" : "bg-guys-primary text-white"}
-                      onClick={handleFollowToggle}
-                    >
-                      {followStatus ? "Following" : "Follow"}
-                    </Button>
+                  <>
                     <Button 
-                      variant="outline"
-                      onClick={handleSendMessage}
+                      onClick={handleFollowToggle}
+                      variant={followStatus ? "secondary" : "default"}
+                      className="flex items-center"
                     >
-                      Message
+                      {followStatus ? (
+                        <>
+                          <CheckIcon className="h-4 w-4 mr-2" />
+                          Following
+                        </>
+                      ) : (
+                        <>
+                          <PlusIcon className="h-4 w-4 mr-2" />
+                          Follow
+                        </>
+                      )}
                     </Button>
-                  </div>
+                    
+                    {user && (
+                      <Button 
+                        onClick={handleSendMessage}
+                        variant="outline"
+                        className="flex items-center"
+                      >
+                        <MailIcon className="h-4 w-4 mr-2" />
+                        Message
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
             
-            <p className="text-gray-700 mb-4">{profileUser.bio || "No bio yet."}</p>
+            {/* Username */}
+            <p className="text-gray-500 mb-4">@{profileUser.username}</p>
             
-            <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-4">
+            {/* Bio */}
+            <p className="text-guys-dark mb-4">{profileUser.bio || "No bio available"}</p>
+            
+            {/* User Stats */}
+            <ProfileStats 
+              followersCount={followersCount}
+              followingCount={profileUser.followingCount}
+              postsCount={profileUser.postsCount || 0}
+            />
+            
+            {/* Location and Join Date */}
+            <div className="flex flex-wrap mt-4 text-sm text-gray-500">
               {profileUser.address && (
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
+                <div className="flex items-center mr-6 mb-2">
+                  <MapPinIcon className="h-4 w-4 mr-1" />
                   <span>{profileUser.address}</span>
                 </div>
               )}
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 mr-1" />
-                <span>Joined {profileUser.joinDate}</span>
-              </div>
-              <div className="flex items-center">
-                <Users className="h-4 w-4 mr-1" />
-                <span>{followersCount} followers</span>
-              </div>
+              {profileUser.joinDate && (
+                <div className="flex items-center mb-2">
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  <span>Joined {profileUser.joinDate}</span>
+                </div>
+              )}
             </div>
-            
-            <ProfileStats 
-              followersCount={followersCount} 
-              followingCount={profileUser.followingCount} 
-              postsCount={profileUser.postsCount || 0} 
-            />
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -255,25 +256,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
       if (followError) throw followError;
       
+      // Get current followers count for the user being followed
+      const { data: followedUser, error: getFollowedError } = await supabase
+        .from('profiles')
+        .select('followers_count')
+        .eq('id', userIdToFollow)
+        .single();
+        
+      if (getFollowedError) throw getFollowedError;
+      
+      // Increment followers count
       const { error: updateFollowedError } = await supabase
-        .rpc('increment', { row_count: 1 })
-        .then(async () => {
-          return supabase
-            .from('profiles')
-            .update({ followers_count: supabase.rpc('increment', { row_count: 1 }) })
-            .eq('id', userIdToFollow);
-        });
+        .from('profiles')
+        .update({ 
+          followers_count: (followedUser.followers_count || 0) + 1 
+        })
+        .eq('id', userIdToFollow);
         
       if (updateFollowedError) throw updateFollowedError;
       
+      // Get current following count for the current user
+      const { data: followerUser, error: getFollowerError } = await supabase
+        .from('profiles')
+        .select('following_count')
+        .eq('id', user.id)
+        .single();
+        
+      if (getFollowerError) throw getFollowerError;
+      
+      // Increment following count
       const { error: updateFollowerError } = await supabase
-        .rpc('increment', { row_count: 1 })
-        .then(async () => {
-          return supabase
-            .from('profiles')
-            .update({ following_count: supabase.rpc('increment', { row_count: 1 }) })
-            .eq('id', user.id);
-        });
+        .from('profiles')
+        .update({ 
+          following_count: (followerUser.following_count || 0) + 1 
+        })
+        .eq('id', user.id);
         
       if (updateFollowerError) throw updateFollowerError;
       
@@ -315,25 +332,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
       if (unfollowError) throw unfollowError;
       
+      // Get current followers count for the user being unfollowed
+      const { data: followedUser, error: getFollowedError } = await supabase
+        .from('profiles')
+        .select('followers_count')
+        .eq('id', userIdToUnfollow)
+        .single();
+        
+      if (getFollowedError) throw getFollowedError;
+      
+      // Decrement followers count
       const { error: updateFollowedError } = await supabase
-        .rpc('decrement', { row_count: 1 })
-        .then(async () => {
-          return supabase
-            .from('profiles')
-            .update({ followers_count: supabase.rpc('decrement', { row_count: 1 }) })
-            .eq('id', userIdToUnfollow);
-        });
+        .from('profiles')
+        .update({ 
+          followers_count: Math.max((followedUser.followers_count || 0) - 1, 0) 
+        })
+        .eq('id', userIdToUnfollow);
         
       if (updateFollowedError) throw updateFollowedError;
       
+      // Get current following count for the current user
+      const { data: followerUser, error: getFollowerError } = await supabase
+        .from('profiles')
+        .select('following_count')
+        .eq('id', user.id)
+        .single();
+        
+      if (getFollowerError) throw getFollowerError;
+      
+      // Decrement following count
       const { error: updateFollowerError } = await supabase
-        .rpc('decrement', { row_count: 1 })
-        .then(async () => {
-          return supabase
-            .from('profiles')
-            .update({ following_count: supabase.rpc('decrement', { row_count: 1 }) })
-            .eq('id', user.id);
-        });
+        .from('profiles')
+        .update({ 
+          following_count: Math.max((followerUser.following_count || 0) - 1, 0) 
+        })
+        .eq('id', user.id);
         
       if (updateFollowerError) throw updateFollowerError;
       
