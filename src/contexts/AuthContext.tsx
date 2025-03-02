@@ -30,7 +30,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const initializeAuth = async () => {
       setIsLoading(true);
       
-      // Get current session
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -46,7 +45,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       setIsLoading(false);
       
-      // Set up auth state change listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, newSession) => {
           setSession(newSession);
@@ -59,7 +57,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       );
       
-      // Cleanup subscription on unmount
       return () => {
         subscription.unsubscribe();
       };
@@ -132,7 +129,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (email: string, username: string, password: string) => {
     setIsLoading(true);
     try {
-      // Check if username is taken
       const { data: existingUser, error: usernameError } = await supabase
         .from('profiles')
         .select('username')
@@ -145,7 +141,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Username is already taken");
       }
       
-      // Register user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -211,7 +206,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) throw error;
       
-      // Update local state
       setUser(updatedUser);
       
       toast({
@@ -239,7 +233,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("You cannot follow yourself");
       }
       
-      // Check if already following
       const { data: existingFollow, error: checkError } = await supabase
         .from('follows')
         .select('*')
@@ -250,11 +243,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (checkError) throw checkError;
       
       if (existingFollow) {
-        // Already following
         return;
       }
       
-      // Create follow relationship
       const { error: followError } = await supabase
         .from('follows')
         .insert({
@@ -264,19 +255,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
       if (followError) throw followError;
       
-      // Update followers count for followed user
       const { error: updateFollowedError } = await supabase
-        .rpc('increment_followers_count', { user_id: userIdToFollow });
+        .from('profiles')
+        .update({ followers_count: supabase.rpc('increment', { row_count: 1 }) })
+        .eq('id', userIdToFollow);
         
       if (updateFollowedError) throw updateFollowedError;
       
-      // Update following count for current user
       const { error: updateFollowerError } = await supabase
-        .rpc('increment_following_count', { user_id: user.id });
+        .from('profiles')
+        .update({ following_count: supabase.rpc('increment', { row_count: 1 }) })
+        .eq('id', user.id);
         
       if (updateFollowerError) throw updateFollowerError;
       
-      // Update local state
       setUser({
         ...user,
         followingCount: (user.followingCount || 0) + 1
@@ -307,7 +299,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("You cannot unfollow yourself");
       }
       
-      // Delete follow relationship
       const { error: unfollowError } = await supabase
         .from('follows')
         .delete()
@@ -316,19 +307,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
       if (unfollowError) throw unfollowError;
       
-      // Update followers count for unfollowed user
       const { error: updateFollowedError } = await supabase
-        .rpc('decrement_followers_count', { user_id: userIdToUnfollow });
+        .from('profiles')
+        .update({ followers_count: supabase.rpc('decrement', { row_count: 1 }) })
+        .eq('id', userIdToUnfollow);
         
       if (updateFollowedError) throw updateFollowedError;
       
-      // Update following count for current user
       const { error: updateFollowerError } = await supabase
-        .rpc('decrement_following_count', { user_id: user.id });
+        .from('profiles')
+        .update({ following_count: supabase.rpc('decrement', { row_count: 1 }) })
+        .eq('id', user.id);
         
       if (updateFollowerError) throw updateFollowerError;
       
-      // Update local state
       setUser({
         ...user,
         followingCount: Math.max((user.followingCount || 0) - 1, 0)
