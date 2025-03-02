@@ -1,108 +1,15 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User } from "@/types";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Session } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
 
-type AuthContextType = {
-  user: User | null;
-  session: Session | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, username: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  updateUserProfile: (updatedUser: User) => Promise<void>;
-  followUser: (userIdToFollow: string) => Promise<void>;
-  unfollowUser: (userIdToUnfollow: string) => Promise<void>;
-  isFollowing: (userId: string) => Promise<boolean>;
-};
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const useAuthActions = (
+  user: User | null, 
+  setUser: React.Dispatch<React.SetStateAction<User | null>>
+) => {
   const { toast } = useToast();
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      setIsLoading(true);
-      
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error("Error getting session:", error);
-        setIsLoading(false);
-        return;
-      }
-
-      if (session) {
-        setSession(session);
-        await fetchUserProfile(session.user.id);
-      }
-      
-      setIsLoading(false);
-      
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, newSession) => {
-          setSession(newSession);
-          
-          if (event === 'SIGNED_IN' && newSession) {
-            await fetchUserProfile(newSession.user.id);
-          } else if (event === 'SIGNED_OUT') {
-            setUser(null);
-          }
-        }
-      );
-      
-      return () => {
-        subscription.unsubscribe();
-      };
-    };
-    
-    initializeAuth();
-  }, []);
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) throw error;
-      
-      if (data) {
-        const joinDate = new Date(data.created_at || Date.now());
-        const formattedJoinDate = joinDate.toLocaleDateString('en-US', { 
-          month: 'long', 
-          year: 'numeric' 
-        });
-        
-        setUser({
-          id: data.id,
-          username: data.username,
-          name: data.full_name || data.username,
-          email: "",  // Email not stored in profiles for privacy/security
-          bio: data.bio || "",
-          profilePicture: data.profile_picture,
-          followersCount: data.followers_count || 0,
-          followingCount: data.following_count || 0,
-          address: data.address || "",
-          joinDate: formattedJoinDate
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-    }
-  };
-
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -122,13 +29,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         variant: "destructive",
       });
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const register = async (email: string, username: string, password: string) => {
-    setIsLoading(true);
     try {
       const { data: existingUser, error: usernameError } = await supabase
         .from('profiles')
@@ -166,8 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         variant: "destructive",
       });
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -266,11 +168,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (getFollowedError) throw getFollowedError;
       
       // Increment followers count
+      const followersCount = (followedUser.followers_count || 0) + 1;
       const { error: updateFollowedError } = await supabase
         .from('profiles')
-        .update({ 
-          followers_count: (followedUser.followers_count || 0) + 1 
-        })
+        .update({ followers_count: followersCount })
         .eq('id', userIdToFollow);
         
       if (updateFollowedError) throw updateFollowedError;
@@ -285,18 +186,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (getFollowerError) throw getFollowerError;
       
       // Increment following count
+      const followingCount = (followerUser.following_count || 0) + 1;
       const { error: updateFollowerError } = await supabase
         .from('profiles')
-        .update({ 
-          following_count: (followerUser.following_count || 0) + 1 
-        })
+        .update({ following_count: followingCount })
         .eq('id', user.id);
         
       if (updateFollowerError) throw updateFollowerError;
       
       setUser({
         ...user,
-        followingCount: (user.followingCount || 0) + 1
+        followingCount: followingCount
       });
       
       toast({
@@ -342,11 +242,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (getFollowedError) throw getFollowedError;
       
       // Decrement followers count
+      const followersCount = Math.max((followedUser.followers_count || 0) - 1, 0);
       const { error: updateFollowedError } = await supabase
         .from('profiles')
-        .update({ 
-          followers_count: Math.max((followedUser.followers_count || 0) - 1, 0) 
-        })
+        .update({ followers_count: followersCount })
         .eq('id', userIdToUnfollow);
         
       if (updateFollowedError) throw updateFollowedError;
@@ -361,18 +260,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (getFollowerError) throw getFollowerError;
       
       // Decrement following count
+      const followingCount = Math.max((followerUser.following_count || 0) - 1, 0);
       const { error: updateFollowerError } = await supabase
         .from('profiles')
-        .update({ 
-          following_count: Math.max((followerUser.following_count || 0) - 1, 0) 
-        })
+        .update({ following_count: followingCount })
         .eq('id', user.id);
         
       if (updateFollowerError) throw updateFollowerError;
       
       setUser({
         ...user,
-        followingCount: Math.max((user.followingCount || 0) - 1, 0)
+        followingCount: followingCount
       });
       
       toast({
@@ -410,31 +308,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        register,
-        logout,
-        updateUserProfile,
-        followUser,
-        unfollowUser,
-        isFollowing,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  return {
+    login,
+    register,
+    logout,
+    updateUserProfile,
+    followUser,
+    unfollowUser,
+    isFollowing
+  };
 };
