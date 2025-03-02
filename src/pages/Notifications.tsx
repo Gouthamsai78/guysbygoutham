@@ -1,77 +1,94 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import CustomNavbar from "@/components/CustomNavbar";
-
-// Placeholder notification data
-const notifications = [
-  {
-    id: "1",
-    type: "like",
-    user: {
-      id: "user-1",
-      name: "John Doe",
-      username: "johndoe",
-      profilePicture: null,
-    },
-    postId: "post-1",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    type: "comment",
-    user: {
-      id: "user-2",
-      name: "Jane Smith",
-      username: "janesmith",
-      profilePicture: null,
-    },
-    postId: "post-2",
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: "3",
-    type: "follow",
-    user: {
-      id: "user-3",
-      name: "Alex Johnson",
-      username: "alexj",
-      profilePicture: null,
-    },
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, Notification } from "@/services/notificationService";
+import { toast } from "sonner";
 
 const Notifications: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const renderNotificationContent = (notification: any) => {
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!user) return;
+      
+      try {
+        const data = await getNotifications(user.id);
+        setNotifications(data);
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+        toast.error("Failed to load notifications");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, [user]);
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return;
+    
+    try {
+      await markAllNotificationsAsRead(user.id);
+      setNotifications(notifications.map(notification => ({ ...notification, read: true })));
+      toast.success("All notifications marked as read");
+    } catch (error) {
+      console.error("Error marking notifications as read:", error);
+      toast.error("Failed to mark notifications as read");
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    try {
+      if (!notification.read) {
+        await markNotificationAsRead(notification.id);
+        setNotifications(notifications.map(n => 
+          n.id === notification.id ? { ...n, read: true } : n
+        ));
+      }
+      
+      if (notification.type === "follow") {
+        navigate(`/profile/${notification.actorId}`);
+      } else if (notification.postId) {
+        navigate(`/post/${notification.postId}`);
+      }
+    } catch (error) {
+      console.error("Error handling notification:", error);
+    }
+  };
+
+  const renderNotificationContent = (notification: Notification) => {
     switch (notification.type) {
       case "like":
         return (
           <span>
-            <strong>{notification.user.name}</strong> liked your post
+            <strong>{notification.actor?.name}</strong> liked your post
           </span>
         );
       case "comment":
         return (
           <span>
-            <strong>{notification.user.name}</strong> commented on your post
+            <strong>{notification.actor?.name}</strong> commented on your post
           </span>
         );
       case "follow":
         return (
           <span>
-            <strong>{notification.user.name}</strong> started following you
+            <strong>{notification.actor?.name}</strong> started following you
           </span>
         );
       default:
         return (
           <span>
-            <strong>{notification.user.name}</strong> interacted with your content
+            <strong>{notification.actor?.name}</strong> interacted with your content
           </span>
         );
     }
@@ -88,61 +105,85 @@ const Notifications: React.FC = () => {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
 
-  const handleNotificationClick = (notification: any) => {
-    if (notification.type === "follow") {
-      navigate(`/profile/${notification.user.id}`);
-    } else if (notification.postId) {
-      navigate(`/post/${notification.postId}`);
-    }
-  };
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <div className="bg-gray-50 min-h-screen">
       <CustomNavbar />
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <div className="flex items-center mb-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="mr-2"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-bold">Notifications</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="mr-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold">Notifications</h1>
+          </div>
+          
+          {unreadCount > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleMarkAllAsRead}
+              className="text-sm"
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Mark all as read
+            </Button>
+          )}
         </div>
 
-        <div className="space-y-2">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className="guys-card p-4 cursor-pointer hover:bg-gray-50"
-              onClick={() => handleNotificationClick(notification)}
-            >
-              <div className="flex items-start space-x-3">
-                <Avatar>
-                  <AvatarImage
-                    src={notification.user.profilePicture}
-                    alt={notification.user.username}
-                  />
-                  <AvatarFallback>
-                    {notification.user.username.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-gray-800">
-                      {renderNotificationContent(notification)}
-                    </p>
-                    <span className="text-xs text-gray-500">
-                      {formatDate(notification.createdAt)}
-                    </span>
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-pulse text-gray-500">Loading notifications...</div>
+          </div>
+        ) : notifications.length > 0 ? (
+          <div className="space-y-2">
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className={`guys-card p-4 cursor-pointer transition-colors ${notification.read ? 'bg-white' : 'bg-blue-50'}`}
+                onClick={() => handleNotificationClick(notification)}
+              >
+                <div className="flex items-start space-x-3">
+                  <Avatar>
+                    <AvatarImage
+                      src={notification.actor?.profilePicture || undefined}
+                      alt={notification.actor?.username}
+                    />
+                    <AvatarFallback>
+                      {notification.actor?.username.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-gray-800">
+                        {renderNotificationContent(notification)}
+                      </p>
+                      <span className="text-xs text-gray-500">
+                        {formatDate(notification.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <div className="bg-gray-100 rounded-full p-4 mx-auto w-16 h-16 flex items-center justify-center mb-4">
+              <svg className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
             </div>
-          ))}
-        </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">No notifications yet</h3>
+            <p className="text-gray-500">When you get notifications, they'll show up here.</p>
+          </div>
+        )}
       </div>
     </div>
   );

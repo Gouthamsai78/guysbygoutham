@@ -1,8 +1,9 @@
 
 import React, { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Camera, Edit, MapPin, Calendar, Link as LinkIcon } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import CustomNavbar from "@/components/CustomNavbar";
 import Post from "@/components/Post";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,6 +16,7 @@ const Profile = () => {
   const { id } = useParams<{ id: string }>();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Find the profile user based on the ID
   const profileUser = mockUsers.find((u) => u.id === id) || currentUser;
@@ -40,16 +42,17 @@ const Profile = () => {
   };
   
   const handleEditProfile = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Profile editing will be available in the next update",
-    });
+    navigate("/edit-profile");
+  };
+  
+  const handleSendMessage = () => {
+    navigate("/messages");
   };
   
   if (!profileUser) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
+        <CustomNavbar />
         <div className="max-w-7xl mx-auto px-4 py-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900">User not found</h2>
           <p className="mt-2 text-gray-600">The user you're looking for doesn't exist or has been removed.</p>
@@ -60,7 +63,7 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <CustomNavbar />
       
       {/* Profile Header */}
       <div className="bg-white border-b">
@@ -108,7 +111,12 @@ const Profile = () => {
                       >
                         {isFollowing ? "Following" : "Follow"}
                       </Button>
-                      <Button variant="outline">Message</Button>
+                      <Button 
+                        variant="outline"
+                        onClick={handleSendMessage}
+                      >
+                        Message
+                      </Button>
                     </div>
                   )}
                 </div>

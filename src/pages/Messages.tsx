@@ -1,68 +1,139 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import CustomNavbar from "@/components/CustomNavbar";
 import MessageThread from "@/components/MessageThread";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { mockMessageThreads, mockMessages } from "@/utils/mockData";
 import { useAuth } from "@/contexts/AuthContext";
-import { Message } from "@/types";
+import { Message, MessageThread as MessageThreadType } from "@/types";
 import { cn } from "@/lib/utils";
+import { getMessageThreads, getMessages, sendMessage, markThreadAsRead } from "@/services/messageService";
+import { toast } from "sonner";
 
 const Messages = () => {
   const { user } = useAuth();
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(
-    mockMessageThreads.length > 0 ? mockMessageThreads[0].id : null
-  );
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [messageThreads, setMessageThreads] = useState<MessageThreadType[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
   
-  if (!user) return null;
+  useEffect(() => {
+    const fetchMessageThreads = async () => {
+      if (!user) return;
+      
+      try {
+        const threads = await getMessageThreads(user.id);
+        setMessageThreads(threads);
+        
+        // Set the first thread as active by default
+        if (threads.length > 0 && !activeThreadId) {
+          setActiveThreadId(threads[0].id);
+        }
+      } catch (error) {
+        console.error("Error fetching message threads:", error);
+        toast.error("Failed to load conversations");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMessageThreads();
+  }, [user]);
   
-  const filteredThreads = mockMessageThreads.filter((thread) =>
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!user || !activeThreadId) return;
+      
+      const activeThread = messageThreads.find(thread => thread.id === activeThreadId);
+      if (!activeThread) return;
+      
+      const otherUser = activeThread.participants.find(p => p.id !== user.id);
+      if (!otherUser) return;
+      
+      try {
+        const threadMessages = await getMessages(user.id, otherUser.id);
+        setMessages(threadMessages);
+        
+        if (activeThread.unreadCount > 0) {
+          await markThreadAsRead(user.id, activeThreadId);
+          
+          // Update the threads to mark messages as read
+          setMessageThreads(threads => 
+            threads.map(thread => 
+              thread.id === activeThreadId 
+                ? { ...thread, unreadCount: 0 } 
+                : thread
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
+    };
+    
+    fetchMessages();
+  }, [user, activeThreadId, messageThreads]);
+  
+  const handleSendMessage = async (threadId: string, content: string) => {
+    if (!user) return;
+    
+    const activeThread = messageThreads.find(thread => thread.id === threadId);
+    if (!activeThread) return;
+    
+    const otherUser = activeThread.participants.find(p => p.id !== user.id);
+    if (!otherUser) return;
+    
+    try {
+      const newMessage = await sendMessage(user.id, otherUser.id, content);
+      setMessages(prevMessages => [...prevMessages, newMessage]);
+      
+      // Update the last message in the thread
+      setMessageThreads(threads => 
+        threads.map(thread => 
+          thread.id === threadId 
+            ? { 
+                ...thread, 
+                lastMessage: {
+                  id: newMessage.id,
+                  senderId: newMessage.senderId,
+                  receiverId: newMessage.receiverId,
+                  content: newMessage.content,
+                  createdAt: newMessage.createdAt,
+                  read: false
+                } 
+              }
+            : thread
+        )
+      );
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+    }
+  };
+  
+  const filteredThreads = messageThreads.filter((thread) =>
     thread.participants.some(
       (participant) =>
-        participant.id !== user.id &&
+        participant.id !== user?.id &&
         (participant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           participant.username.toLowerCase().includes(searchQuery.toLowerCase()))
     )
   );
   
-  const activeThread = mockMessageThreads.find((thread) => thread.id === activeThreadId);
+  const activeThread = messageThreads.find((thread) => thread.id === activeThreadId);
   
-  // Get messages for the active thread
-  const threadMessages = messages.filter(
-    (message) =>
-      (message.senderId === user.id && 
-       message.receiverId === activeThread?.participants.find(p => p.id !== user.id)?.id) ||
-      (message.receiverId === user.id && 
-       message.senderId === activeThread?.participants.find(p => p.id !== user.id)?.id)
-  );
-  
-  const handleSendMessage = (threadId: string, content: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      senderId: user.id,
-      receiverId: mockMessageThreads.find((thread) => thread.id === threadId)?.participants.find(
-        (participant) => participant.id !== user.id
-      )?.id || "",
-      content,
-      createdAt: new Date().toISOString(),
-      read: false,
-    };
-    
-    setMessages([...messages, newMessage]);
-  };
-  
-  const getThreadTime = (thread: typeof mockMessageThreads[0]) => {
+  const getThreadTime = (thread: MessageThreadType) => {
     const date = new Date(thread.lastMessage.createdAt);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  if (!user) return null;
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <CustomNavbar />
       <div className="max-w-7xl mx-auto">
         <div className="bg-white border-b shadow-sm h-[calc(100vh-4rem)]">
           <div className="grid md:grid-cols-3 h-full">
@@ -82,7 +153,11 @@ const Messages = () => {
               </div>
               
               <div className="flex-grow overflow-y-auto">
-                {filteredThreads.length > 0 ? (
+                {loading ? (
+                  <div className="flex justify-center p-8">
+                    <div className="animate-pulse text-gray-500">Loading conversations...</div>
+                  </div>
+                ) : filteredThreads.length > 0 ? (
                   filteredThreads.map((thread) => {
                     const otherUser = thread.participants.find((p) => p.id !== user.id);
                     if (!otherUser) return null;
@@ -99,7 +174,7 @@ const Messages = () => {
                         onClick={() => setActiveThreadId(thread.id)}
                       >
                         <Avatar className="h-12 w-12 mr-3">
-                          <AvatarImage src={otherUser.profilePicture} alt={otherUser.username} />
+                          <AvatarImage src={otherUser.profilePicture || undefined} alt={otherUser.username} />
                           <AvatarFallback>{otherUser.username.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="flex-grow min-w-0">
@@ -135,7 +210,7 @@ const Messages = () => {
               {activeThread ? (
                 <MessageThread
                   thread={activeThread}
-                  messages={threadMessages}
+                  messages={messages}
                   onSendMessage={handleSendMessage}
                 />
               ) : (
