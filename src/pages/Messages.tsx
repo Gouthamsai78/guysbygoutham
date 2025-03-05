@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import CustomNavbar from "@/components/CustomNavbar";
 import MessageThread from "@/components/MessageThread";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth";
 import { Message, MessageThread as MessageThreadType } from "@/types";
 import { cn } from "@/lib/utils";
 import { getMessageThreads, getMessages, sendMessage, markThreadAsRead } from "@/services/messageService";

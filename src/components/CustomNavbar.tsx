@@ -3,7 +3,7 @@ import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Home, MessageSquare, Bell, PenSquare, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import SearchBar from "./SearchBar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircle, Send } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth";
 import { MessageThread as MessageThreadType, Message } from "@/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

@@ -5,7 +5,7 @@ import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import CustomNavbar from "@/components/CustomNavbar";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth";
 import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, Notification } from "@/services/notificationService";
 import { toast } from "sonner";
 
