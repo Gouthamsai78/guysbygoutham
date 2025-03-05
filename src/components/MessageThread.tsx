@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircle, Send } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
@@ -26,19 +26,30 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   const [localMessages, setLocalMessages] = useState<Message[]>(messages);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  useEffect(() => {
-    // Update local messages when prop messages change
-    setLocalMessages(messages);
-    // Scroll to bottom when messages change
-    scrollToBottom();
-  }, [messages]);
+  // Memoize the otherUser to avoid recalculating it on every render
+  const otherUser = user ? thread.participants.find((p) => p.id !== user.id) : null;
   
+  // Optimization: Use useCallback for functions that are passed to child components or used in effect dependencies
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, []);
+  
+  // Update local messages only when the messages prop changes
   useEffect(() => {
-    // Set up real-time subscription to messages
-    if (!user) return;
+    if (messages !== localMessages) {
+      setLocalMessages(messages);
+      // Scroll to bottom after messages update
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [messages, localMessages, scrollToBottom]);
+  
+  // Set up real-time subscription to messages
+  useEffect(() => {
+    if (!user || !otherUser) return;
     
-    const otherUser = thread.participants.find((p) => p.id !== user.id);
-    if (!otherUser) return;
+    console.log("Setting up real-time subscription for messages");
     
     const channel = supabase
       .channel('message-changes')
@@ -62,7 +73,16 @@ const MessageThread: React.FC<MessageThreadProps> = ({
               createdAt: newMessage.created_at,
               read: newMessage.read
             };
-            setLocalMessages(prev => [...prev, message]);
+            
+            // Use functional update to avoid stale state
+            setLocalMessages(prev => {
+              // Check if the message already exists to avoid duplicates
+              if (prev.some(msg => msg.id === message.id)) {
+                return prev;
+              }
+              return [...prev, message];
+            });
+            
             // Scroll to bottom for new messages
             setTimeout(scrollToBottom, 100);
           }
@@ -71,19 +91,12 @@ const MessageThread: React.FC<MessageThreadProps> = ({
       .subscribe();
     
     return () => {
+      console.log("Removing real-time subscription");
       supabase.removeChannel(channel);
     };
-  }, [user, thread]);
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, [user, otherUser, scrollToBottom]);
   
   if (!user) return null;
-  
-  // Get the other participant (not the current user)
-  const otherUser = thread.participants.find((p) => p.id !== user.id);
-  
   if (!otherUser) return null;
   
   const handleSend = async () => {
