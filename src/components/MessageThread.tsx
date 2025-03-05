@@ -7,6 +7,7 @@ import { MessageThread as MessageThreadType, Message } from "@/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MessageThreadProps {
   thread: MessageThreadType;
@@ -22,12 +23,57 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   const { user } = useAuth();
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [localMessages, setLocalMessages] = useState<Message[]>(messages);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
+    // Update local messages when prop messages change
+    setLocalMessages(messages);
     // Scroll to bottom when messages change
     scrollToBottom();
   }, [messages]);
+  
+  useEffect(() => {
+    // Set up real-time subscription to messages
+    if (!user) return;
+    
+    const otherUser = thread.participants.find((p) => p.id !== user.id);
+    if (!otherUser) return;
+    
+    const channel = supabase
+      .channel('message-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `sender_id=eq.${otherUser.id}`,
+        },
+        (payload) => {
+          const newMessage = payload.new as any;
+          // Only add messages meant for this user
+          if (newMessage.receiver_id === user.id) {
+            const message: Message = {
+              id: newMessage.id,
+              senderId: newMessage.sender_id,
+              receiverId: newMessage.receiver_id,
+              content: newMessage.content,
+              createdAt: newMessage.created_at,
+              read: newMessage.read
+            };
+            setLocalMessages(prev => [...prev, message]);
+            // Scroll to bottom for new messages
+            setTimeout(scrollToBottom, 100);
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, thread]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -78,7 +124,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
       
       {/* Messages Container */}
       <div className="flex-grow p-4 overflow-y-auto flex flex-col space-y-3 messages-container">
-        {messages.length === 0 ? (
+        {localMessages.length === 0 ? (
           <div className="flex-grow flex flex-col items-center justify-center text-gray-500">
             <MessageCircle className="h-12 w-12 mb-2 text-guys-primary opacity-20" />
             <p>No messages yet.</p>
@@ -87,7 +133,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
           </div>
         ) : (
           <>
-            {messages.map((message) => {
+            {localMessages.map((message) => {
               const isCurrentUser = message.senderId === user.id;
               return (
                 <div
