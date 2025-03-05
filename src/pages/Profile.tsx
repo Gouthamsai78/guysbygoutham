@@ -176,7 +176,16 @@ const Profile = () => {
   };
   
   const handleSendMessage = () => {
-    navigate("/messages");
+    // Only navigate to messages if the user follows the profile
+    if (followStatus) {
+      navigate("/messages");
+    } else {
+      toast({
+        title: "Follow Required",
+        description: "You need to follow this user to send messages",
+        variant: "warning"
+      });
+    }
   };
   
   if (loading) {

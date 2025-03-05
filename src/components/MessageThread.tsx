@@ -1,7 +1,7 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageCircle, Send } from "lucide-react";
+import { MessageCircle, Send, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { MessageThread as MessageThreadType, Message } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -19,9 +19,17 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   messages = [],
   onSendMessage,
 }) => {
-  const { user } = useAuth();
+  const { user, followUser } = useAuth();
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  
+  useEffect(() => {
+    // Scroll to bottom when messages change
+    const messagesContainer = document.querySelector(".messages-container");
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }, [messages]);
   
   if (!user) return null;
   
@@ -76,6 +84,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             <MessageCircle className="h-12 w-12 mb-2 text-guys-primary opacity-20" />
             <p>No messages yet.</p>
             <p className="text-sm">Send a message to start the conversation!</p>
+            <p className="text-xs mt-4 text-gray-400">Remember: You can only message users you follow.</p>
           </div>
         ) : (
           messages.map((message) => {

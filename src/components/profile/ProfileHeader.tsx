@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
 import { User } from "@/types";
 import ProfileStats from "./ProfileStats";
-import { CalendarIcon, MapPinIcon, CheckIcon, PlusIcon, MailIcon, PencilIcon } from "lucide-react";
+import { CalendarIcon, MapPinIcon, CheckIcon, PlusIcon, MailIcon, PencilIcon, UserIcon, UsersIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface ProfileHeaderProps {
   profileUser: User;
@@ -26,6 +27,17 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   handleSendMessage,
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  const viewFollowers = () => {
+    // This would navigate to a followers page in a real implementation
+    alert(`${profileUser.name} has ${followersCount} followers`);
+  };
+  
+  const viewFollowing = () => {
+    // This would navigate to a following page in a real implementation
+    alert(`${profileUser.name} is following ${profileUser.followingCount} users`);
+  };
   
   return (
     <div className="bg-white border-b">
@@ -84,7 +96,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                       )}
                     </Button>
                     
-                    {user && (
+                    {user && followStatus && (
                       <Button 
                         onClick={handleSendMessage}
                         variant="outline"
@@ -105,15 +117,34 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             {/* Bio */}
             <p className="text-guys-dark mb-4">{profileUser.bio || "No bio available"}</p>
             
-            {/* User Stats */}
-            <ProfileStats 
-              followersCount={followersCount}
-              followingCount={profileUser.followingCount}
-              postsCount={profileUser.postsCount || 0}
-            />
+            {/* User Stats - Now clickable */}
+            <div className="flex space-x-6 mb-4">
+              <button 
+                onClick={viewFollowers}
+                className="flex items-center hover:text-guys-primary transition-colors"
+              >
+                <UsersIcon className="h-4 w-4 mr-1" />
+                <span className="font-medium text-guys-dark">{followersCount}</span>{" "}
+                <span className="text-gray-500 ml-1">Followers</span>
+              </button>
+              
+              <button 
+                onClick={viewFollowing}
+                className="flex items-center hover:text-guys-primary transition-colors"
+              >
+                <UserIcon className="h-4 w-4 mr-1" />
+                <span className="font-medium text-guys-dark">{profileUser.followingCount}</span>{" "}
+                <span className="text-gray-500 ml-1">Following</span>
+              </button>
+              
+              <div>
+                <span className="font-medium text-guys-dark">{profileUser.postsCount || 0}</span>{" "}
+                <span className="text-gray-500">Posts</span>
+              </div>
+            </div>
             
             {/* Location and Join Date */}
-            <div className="flex flex-wrap mt-4 text-sm text-gray-500">
+            <div className="flex flex-wrap mt-2 text-sm text-gray-500">
               {profileUser.address && (
                 <div className="flex items-center mr-6 mb-2">
                   <MapPinIcon className="h-4 w-4 mr-1" />

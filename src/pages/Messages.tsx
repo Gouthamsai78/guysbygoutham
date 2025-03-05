@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import CustomNavbar from "@/components/CustomNavbar";
@@ -69,6 +70,7 @@ const Messages = () => {
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
+        toast.error(error.message || "Failed to load messages");
       }
     };
     
@@ -108,7 +110,7 @@ const Messages = () => {
       );
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error("Failed to send message");
+      // Toast is shown in sendMessage function on error
     }
   };
   
@@ -128,7 +130,17 @@ const Messages = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CustomNavbar />
+        <div className="max-w-7xl mx-auto p-8 text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Please Sign In</h2>
+          <p className="text-gray-600">You need to be logged in to view and send messages.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -197,8 +209,11 @@ const Messages = () => {
                     );
                   })
                 ) : (
-                  <div className="p-4 text-center text-gray-500">
-                    No conversations found.
+                  <div className="p-8 text-center">
+                    <p className="text-gray-500 mb-2">No conversations found.</p>
+                    <p className="text-sm text-gray-400">
+                      You can only message users that you follow.
+                    </p>
                   </div>
                 )}
               </div>
@@ -231,8 +246,11 @@ const Messages = () => {
                     </svg>
                   </div>
                   <h3 className="text-xl font-medium mb-2">Your Messages</h3>
-                  <p className="text-gray-500 max-w-md">
-                    Send private messages to your friends and stay connected.
+                  <p className="text-gray-500 max-w-md mb-2">
+                    Send private messages to people you follow.
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Note: You can only message users that you follow.
                   </p>
                 </div>
               )}
