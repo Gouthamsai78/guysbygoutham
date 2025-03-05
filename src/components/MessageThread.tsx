@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/auth";
 import { MessageThread as MessageThreadType, Message } from "@/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface MessageThreadProps {
   thread: MessageThreadType;
@@ -20,6 +21,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
 }) => {
   const { user } = useAuth();
   const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   
   if (!user) return null;
   
@@ -28,10 +30,23 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   
   if (!otherUser) return null;
   
-  const handleSend = () => {
+  const handleSend = async () => {
     if (newMessage.trim() && onSendMessage) {
-      onSendMessage(thread.id, newMessage);
-      setNewMessage("");
+      try {
+        setIsSending(true);
+        await onSendMessage(thread.id, newMessage);
+        setNewMessage("");
+        // Scroll to bottom after sending
+        const messagesContainer = document.querySelector(".messages-container");
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      } catch (error) {
+        console.error("Error sending message:", error);
+        toast.error("Failed to send message");
+      } finally {
+        setIsSending(false);
+      }
     }
   };
   
@@ -55,7 +70,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
       </div>
       
       {/* Messages Container */}
-      <div className="flex-grow p-4 overflow-y-auto flex flex-col space-y-3">
+      <div className="flex-grow p-4 overflow-y-auto flex flex-col space-y-3 messages-container">
         {messages.length === 0 ? (
           <div className="flex-grow flex flex-col items-center justify-center text-gray-500">
             <MessageCircle className="h-12 w-12 mb-2 text-guys-primary opacity-20" />
@@ -96,21 +111,26 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="guys-input"
+            className="guys-input flex-grow p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-guys-primary"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
+            disabled={isSending}
           />
           <Button
             type="button"
             onClick={handleSend}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || isSending}
             className="bg-guys-primary text-white hover:bg-guys-secondary"
           >
-            <Send className="h-5 w-5" />
+            {isSending ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-white"></div>
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>

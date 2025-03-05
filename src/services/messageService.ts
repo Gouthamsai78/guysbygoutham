@@ -117,7 +117,12 @@ export const sendMessage = async (
   content: string
 ): Promise<Message> => {
   // In a real app, this would send the message to Supabase
-  // For now, we'll just return a mock response
+  // For now, we'll just return a mock response with a delay to simulate network latency
+  console.log("Sending message:", { senderId, receiverId, content });
+  
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
   const newMessage: Message = {
     id: `msg-${Date.now()}`,
     senderId,
@@ -126,11 +131,6 @@ export const sendMessage = async (
     createdAt: new Date().toISOString(),
     read: false
   };
-  
-  console.log("Sending message:", newMessage);
-  
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500));
   
   return newMessage;
 };
