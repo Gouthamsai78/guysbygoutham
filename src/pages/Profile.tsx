@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import CustomNavbar from "@/components/CustomNavbar";
@@ -25,13 +24,11 @@ const Profile = () => {
   
   const isCurrentUserProfile = currentUser?.id === id;
   
-  // Fetch profile data
   useEffect(() => {
     const fetchProfileData = async () => {
       setLoading(true);
       
       try {
-        // Fetch profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -57,13 +54,12 @@ const Profile = () => {
             followingCount: profile.following_count || 0,
             address: profile.address || "No location set",
             joinDate: formattedJoinDate,
-            postsCount: 0 // Will be updated when we fetch posts
+            postsCount: 0
           });
           
           setFollowersCount(profile.followers_count || 0);
         }
         
-        // Fetch posts
         const { data: posts, error: postsError } = await supabase
           .from('posts')
           .select(`
@@ -83,9 +79,9 @@ const Profile = () => {
             imageUrl: post.image_url,
             videoUrl: post.video_url,
             createdAt: new Date(post.created_at).toISOString(),
-            likesCount: 0, // To be implemented 
-            commentsCount: 0, // To be implemented
-            isLiked: false, // To be implemented
+            likesCount: 0,
+            commentsCount: 0,
+            isLiked: false,
             user: {
               id: post.user_id,
               username: post.profiles.username,
@@ -96,7 +92,6 @@ const Profile = () => {
           
           setUserPosts(formattedPosts);
           
-          // Update posts count in profile user
           setProfileUser(prevUser => ({
             ...prevUser,
             postsCount: formattedPosts.length
@@ -105,7 +100,6 @@ const Profile = () => {
           setUserPosts([]);
         }
         
-        // Check follow status
         if (currentUser && id && !isCurrentUserProfile) {
           const followingStatus = await isFollowing(id);
           setFollowStatus(followingStatus);
@@ -119,7 +113,6 @@ const Profile = () => {
           variant: "destructive"
         });
         
-        // Fallback to mock data for demo purposes
         const mockUser = mockUsers.find((u) => u.id === id);
         if (mockUser) {
           setProfileUser({
@@ -176,14 +169,13 @@ const Profile = () => {
   };
   
   const handleSendMessage = () => {
-    // Only navigate to messages if the user follows the profile
     if (followStatus) {
       navigate("/messages");
     } else {
       toast({
         title: "Follow Required",
         description: "You need to follow this user to send messages",
-        variant: "warning"
+        variant: "destructive"
       });
     }
   };
