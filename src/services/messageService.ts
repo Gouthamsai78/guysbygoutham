@@ -46,6 +46,21 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
       throw currentUserError;
     }
 
+    // Get the latest message with each followed user (if any)
+    const messagesPromises = followedUserIds.map(async (followedId) => {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+        .or(`sender_id.eq.${followedId},receiver_id.eq.${followedId}`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+        
+      return { followedId, latestMessage: data && data.length > 0 ? data[0] : null };
+    });
+    
+    const messagesResults = await Promise.all(messagesPromises);
+
     // Convert profiles to User objects
     const users: User[] = profiles.map(profile => ({
       id: profile.id,
@@ -58,32 +73,60 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
       bio: profile.bio || ""
     }));
 
+    // Create current user object
+    const currentUser: User = {
+      id: currentUserProfile.id,
+      name: currentUserProfile.full_name || currentUserProfile.username,
+      username: currentUserProfile.username,
+      profilePicture: currentUserProfile.profile_picture,
+      email: "",
+      followersCount: currentUserProfile.followers_count || 0,
+      followingCount: currentUserProfile.following_count || 0,
+      bio: currentUserProfile.bio || ""
+    };
+
     // Create message threads for each followed user
     const threads: MessageThread[] = users.map(user => {
-      const currentUser: User = {
-        id: currentUserProfile.id,
-        name: currentUserProfile.full_name || currentUserProfile.username,
-        username: currentUserProfile.username,
-        profilePicture: currentUserProfile.profile_picture,
-        email: "",
-        followersCount: currentUserProfile.followers_count || 0,
-        followingCount: currentUserProfile.following_count || 0,
-        bio: currentUserProfile.bio || ""
-      };
-
-      // Create a thread with the followed user
-      return {
-        id: `thread-${userId}-${user.id}`,
-        participants: [currentUser, user],
-        lastMessage: {
+      // Find the latest message for this user
+      const threadResult = messagesResults.find(result => result.followedId === user.id);
+      const latestMessage = threadResult?.latestMessage;
+      
+      let lastMessage: Message;
+      let unreadCount = 0;
+      
+      if (latestMessage) {
+        // Use actual message from database
+        lastMessage = {
+          id: latestMessage.id,
+          senderId: latestMessage.sender_id,
+          receiverId: latestMessage.receiver_id,
+          content: latestMessage.content,
+          createdAt: latestMessage.created_at,
+          read: latestMessage.read
+        };
+        
+        // Check if there are unread messages
+        if (!latestMessage.read && latestMessage.receiver_id === userId) {
+          unreadCount = 1; // This is just the count for the latest message
+        }
+      } else {
+        // Default message if no conversation exists yet
+        lastMessage = {
           id: `placeholder-${Date.now()}`,
           senderId: user.id,
           receiverId: userId,
           content: "Start a conversation...",
           createdAt: new Date().toISOString(),
           read: true
-        },
-        unreadCount: 0
+        };
+      }
+
+      // Create a thread with the followed user
+      return {
+        id: `thread-${userId}-${user.id}`,
+        participants: [currentUser, user],
+        lastMessage,
+        unreadCount
       };
     });
 
@@ -118,26 +161,29 @@ export const getMessages = async (
       throw new Error("You can only message users you follow");
     }
 
-    // In a real app with a messages table, we would fetch real messages here
-    // For now, return mock data until we implement the messages table
-    return [
-      {
-        id: "msg-1",
-        senderId: otherUserId,
-        receiverId: userId,
-        content: "Hey, thanks for following me!",
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-        read: true
-      },
-      {
-        id: "msg-2",
-        senderId: userId,
-        receiverId: otherUserId,
-        content: "Happy to connect with you!",
-        createdAt: new Date(Date.now() - 3500000).toISOString(),
-        read: true
-      }
-    ];
+    // Get messages between these two users
+    const { data: messages, error: messagesError } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${userId})`)
+      .order('created_at', { ascending: true });
+
+    if (messagesError) {
+      console.error("Error fetching messages:", messagesError);
+      throw messagesError;
+    }
+
+    // Convert to our Message type
+    const formattedMessages: Message[] = (messages || []).map(msg => ({
+      id: msg.id,
+      senderId: msg.sender_id,
+      receiverId: msg.receiver_id,
+      content: msg.content,
+      createdAt: msg.created_at,
+      read: msg.read
+    }));
+    
+    return formattedMessages;
   } catch (error) {
     console.error("Error getting messages:", error);
     toast.error(error.message || "Failed to load messages");
@@ -170,18 +216,31 @@ export const sendMessage = async (
 
     console.log("Sending message:", { senderId, receiverId, content });
     
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Insert the message into the messages table
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        sender_id: senderId,
+        receiver_id: receiverId,
+        content: content,
+        read: false
+      })
+      .select()
+      .single();
     
-    // In a real app, we would insert the message into a messages table
-    // For now, return a mock response
+    if (error) {
+      console.error("Error inserting message:", error);
+      throw error;
+    }
+    
+    // Convert to our Message type
     const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      senderId,
-      receiverId,
-      content,
-      createdAt: new Date().toISOString(),
-      read: false
+      id: data.id,
+      senderId: data.sender_id,
+      receiverId: data.receiver_id,
+      content: data.content,
+      createdAt: data.created_at,
+      read: data.read
     };
     
     return newMessage;
@@ -196,9 +255,29 @@ export const markThreadAsRead = async (
   userId: string,
   threadId: string
 ): Promise<void> => {
-  // In a real app, this would update the message read status in Supabase
-  console.log(`Marking thread ${threadId} as read for user ${userId}`);
-  
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    // Extract the other user ID from the thread ID
+    // Format is "thread-{currentUserId}-{otherUserId}"
+    const otherUserId = threadId.split('-')[2];
+    
+    if (!otherUserId) {
+      throw new Error("Invalid thread ID");
+    }
+    
+    // Mark all messages from the other user as read
+    const { error } = await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('sender_id', otherUserId)
+      .eq('receiver_id', userId)
+      .eq('read', false);
+      
+    if (error) {
+      console.error("Error marking messages as read:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error marking thread as read:", error);
+    // Don't show a toast for this error as it's not critical
+  }
 };

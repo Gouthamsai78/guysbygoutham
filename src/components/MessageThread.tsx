@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageCircle, Send, UserPlus } from "lucide-react";
+import { MessageCircle, Send } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { MessageThread as MessageThreadType, Message } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -19,17 +19,19 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   messages = [],
   onSendMessage,
 }) => {
-  const { user, followUser } = useAuth();
+  const { user } = useAuth();
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     // Scroll to bottom when messages change
-    const messagesContainer = document.querySelector(".messages-container");
-    if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
+    scrollToBottom();
   }, [messages]);
+  
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
   
   if (!user) return null;
   
@@ -45,10 +47,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
         await onSendMessage(thread.id, newMessage);
         setNewMessage("");
         // Scroll to bottom after sending
-        const messagesContainer = document.querySelector(".messages-container");
-        if (messagesContainer) {
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
+        setTimeout(scrollToBottom, 100);
       } catch (error) {
         console.error("Error sending message:", error);
         toast.error("Failed to send message");
@@ -87,28 +86,31 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             <p className="text-xs mt-4 text-gray-400">Remember: You can only message users you follow.</p>
           </div>
         ) : (
-          messages.map((message) => {
-            const isCurrentUser = message.senderId === user.id;
-            return (
-              <div
-                key={message.id}
-                className={cn(
-                  "max-w-[75%] p-3 rounded-lg",
-                  isCurrentUser
-                    ? "ml-auto bg-guys-primary text-white rounded-br-none"
-                    : "bg-gray-100 text-gray-800 rounded-bl-none"
-                )}
-              >
-                <p className="text-sm">{message.content}</p>
-                <p className={cn(
-                  "text-xs mt-1",
-                  isCurrentUser ? "text-guys-primary-foreground opacity-70" : "text-gray-500"
-                )}>
-                  {formatTime(message.createdAt)}
-                </p>
-              </div>
-            );
-          })
+          <>
+            {messages.map((message) => {
+              const isCurrentUser = message.senderId === user.id;
+              return (
+                <div
+                  key={message.id}
+                  className={cn(
+                    "max-w-[75%] p-3 rounded-lg",
+                    isCurrentUser
+                      ? "ml-auto bg-guys-primary text-white rounded-br-none"
+                      : "bg-gray-100 text-gray-800 rounded-bl-none"
+                  )}
+                >
+                  <p className="text-sm">{message.content}</p>
+                  <p className={cn(
+                    "text-xs mt-1",
+                    isCurrentUser ? "text-guys-primary-foreground opacity-70" : "text-gray-500"
+                  )}>
+                    {formatTime(message.createdAt)}
+                  </p>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </>
         )}
       </div>
       
