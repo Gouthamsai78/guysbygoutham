@@ -5,14 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
 import { Message as MessageType, MessageThread as MessageThreadType } from "@/types";
-import { Send, X, Heart, Image, Mic, Paperclip, Smile } from "lucide-react";
+import { Send, X, Heart, Image, Mic, Paperclip, Smile, StopCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MessageThreadProps {
   thread: MessageThreadType;
   messages: MessageType[];
-  onSendMessage: (threadId: string, content: string, replyToId?: string) => void;
+  onSendMessage: (threadId: string, content: string, replyToId?: string, file?: File) => void;
 }
 
 const MessageThread: React.FC<MessageThreadProps> = ({
@@ -21,10 +23,20 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   onSendMessage,
 }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [messageInput, setMessageInput] = useState("");
   const [replyToMessage, setReplyToMessage] = useState<MessageType | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<number | null>(null);
 
   const otherUser = thread.participants.find((p) => p.id !== user?.id);
 
@@ -32,14 +44,37 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Timer for voice recording
+  useEffect(() => {
+    if (isRecording) {
+      timerRef.current = window.setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setRecordingTime(0);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isRecording]);
+
   const handleSendMessage = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (messageInput.trim() && user) {
-      onSendMessage(thread.id, messageInput, replyToMessage?.id);
-      setMessageInput("");
-      setReplyToMessage(null);
-    }
-  }, [messageInput, user, thread.id, replyToMessage, onSendMessage]);
+    if ((!messageInput.trim() && !selectedFile) || !user) return;
+    
+    onSendMessage(thread.id, messageInput, replyToMessage?.id, selectedFile || undefined);
+    setMessageInput("");
+    setReplyToMessage(null);
+    setSelectedFile(null);
+    setFilePreview(null);
+  }, [messageInput, user, thread.id, replyToMessage, onSendMessage, selectedFile]);
 
   const handleReplyToMessage = useCallback((message: MessageType) => {
     setReplyToMessage(message);
@@ -57,6 +92,96 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     if (!replyToId) return null;
     return messages.find(msg => msg.id === replyToId);
   }, [messages]);
+
+  const formatRecordingTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
+        
+        // Upload and send voice message
+        onSendMessage(thread.id, "Voice message", replyToMessage?.id, audioFile);
+        setReplyToMessage(null);
+        
+        // Stop all tracks from the stream
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      toast({
+        title: "Error",
+        description: "Could not access microphone. Please check permissions.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Limit file size to 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select a file smaller than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSelectedFile(file);
+    
+    // Create preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFilePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
 
   if (!user || !otherUser) {
     return <div className="p-8 text-center text-gray-500">Loading conversation...</div>;
@@ -93,6 +218,11 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             const isCurrentUser = message.senderId === user.id;
             const repliedMessage = findRepliedMessage(message.replyToId);
             
+            // Check if message contains an image or audio file
+            const isImage = message.fileUrl?.match(/\.(jpeg|jpg|gif|png)$/i);
+            const isAudio = message.fileUrl?.match(/\.(mp3|wav|ogg|webm)$/i);
+            const isFile = message.fileUrl && !isImage && !isAudio;
+            
             return (
               <div
                 key={message.id}
@@ -124,18 +254,57 @@ const MessageThread: React.FC<MessageThreadProps> = ({
                       ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-br-none"
                       : "bg-white text-gray-800 rounded-bl-none border border-gray-100"
                   )}
-                  onClick={() => handleReplyToMessage(message)}
                 >
-                  {message.content}
-                  <div
-                    className={cn(
-                      "text-xs mt-1",
-                      isCurrentUser ? "text-pink-100" : "text-gray-500"
-                    )}
-                  >
-                    {formatDistanceToNow(new Date(message.createdAt), {
-                      addSuffix: true,
-                    })}
+                  {/* File attachments */}
+                  {isImage && (
+                    <div className="mb-2">
+                      <img 
+                        src={message.fileUrl} 
+                        alt="Shared image" 
+                        className="rounded-lg max-h-[200px] w-auto object-contain" 
+                      />
+                    </div>
+                  )}
+                  
+                  {isAudio && (
+                    <div className="mb-2">
+                      <audio controls className="w-full max-w-[240px]">
+                        <source src={message.fileUrl} type="audio/webm" />
+                        Your browser does not support audio playback.
+                      </audio>
+                    </div>
+                  )}
+                  
+                  {isFile && (
+                    <div className="mb-2 flex items-center">
+                      <Paperclip className={cn("h-4 w-4 mr-1", isCurrentUser ? "text-pink-100" : "text-gray-500")} />
+                      <a 
+                        href={message.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={cn(
+                          "underline text-sm",
+                          isCurrentUser ? "text-pink-100" : "text-purple-500"
+                        )}
+                      >
+                        Attachment
+                      </a>
+                    </div>
+                  )}
+                  
+                  {/* Message content */}
+                  <div onClick={() => handleReplyToMessage(message)}>
+                    {message.content}
+                    <div
+                      className={cn(
+                        "text-xs mt-1",
+                        isCurrentUser ? "text-pink-100" : "text-gray-500"
+                      )}
+                    >
+                      {formatDistanceToNow(new Date(message.createdAt), {
+                        addSuffix: true,
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -158,6 +327,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
       </div>
 
       <form onSubmit={handleSendMessage} className="p-4 border-t bg-white">
+        {/* Reply preview */}
         {replyToMessage && (
           <div className="flex items-center bg-gradient-to-r from-pink-50 to-purple-50 p-2 rounded-lg mb-2 animate-fade-in">
             <div className="flex-1 text-sm truncate">
@@ -176,23 +346,95 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             </Button>
           </div>
         )}
+        
+        {/* File preview */}
+        {filePreview && (
+          <div className="bg-gray-50 p-2 rounded-lg mb-2 relative">
+            <img 
+              src={filePreview} 
+              alt="Upload preview" 
+              className="h-20 w-auto rounded-lg mx-auto object-contain" 
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute top-1 right-1 h-6 w-6 bg-gray-800 bg-opacity-50 text-white rounded-full hover:bg-opacity-70"
+              onClick={clearSelectedFile}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        
+        {selectedFile && !filePreview && (
+          <div className="bg-gray-50 p-2 rounded-lg mb-2 flex items-center justify-between">
+            <div className="flex items-center">
+              <Paperclip className="h-4 w-4 mr-2 text-gray-500" />
+              <span className="text-sm text-gray-700 truncate max-w-[200px]">{selectedFile.name}</span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-gray-500 hover:text-pink-500"
+              onClick={clearSelectedFile}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        
+        {/* Voice recording indicator */}
+        {isRecording && (
+          <div className="bg-red-50 p-2 rounded-lg mb-2 flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="h-2 w-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+              <span className="text-sm text-red-700">Recording {formatRecordingTime(recordingTime)}</span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full"
+              onClick={stopRecording}
+            >
+              <StopCircle className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
+        
+        {/* Input area */}
         <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-full">
+          {/* Hidden file input */}
+          <input 
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept="image/*,audio/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          />
+          
           <Button 
             type="button" 
             size="icon" 
             variant="ghost" 
             className="text-gray-500 hover:text-pink-500 hover:bg-pink-50 rounded-full"
+            onClick={triggerFileInput}
           >
             <Paperclip className="h-5 w-5" />
           </Button>
+          
           <Button 
             type="button" 
             size="icon" 
             variant="ghost" 
             className="text-gray-500 hover:text-pink-500 hover:bg-pink-50 rounded-full"
+            onClick={triggerFileInput}
           >
             <Image className="h-5 w-5" />
           </Button>
+          
           <Input
             ref={inputRef}
             type="text"
@@ -201,6 +443,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             onChange={(e) => setMessageInput(e.target.value)}
             className="flex-grow bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
+          
           <Button 
             type="button" 
             size="icon" 
@@ -209,18 +452,24 @@ const MessageThread: React.FC<MessageThreadProps> = ({
           >
             <Smile className="h-5 w-5" />
           </Button>
+          
           <Button 
             type="button" 
             size="icon" 
             variant="ghost" 
-            className="text-gray-500 hover:text-pink-500 hover:bg-pink-50 rounded-full mr-1"
+            className={cn(
+              "text-gray-500 hover:text-pink-500 hover:bg-pink-50 rounded-full mr-1",
+              isRecording && "text-red-500 bg-red-50"
+            )}
+            onClick={isRecording ? stopRecording : startRecording}
           >
             <Mic className="h-5 w-5" />
           </Button>
+          
           <Button 
             type="submit" 
             size="icon" 
-            disabled={!messageInput.trim()} 
+            disabled={!messageInput.trim() && !selectedFile && !isRecording} 
             className="bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600"
           >
             <Send className="h-5 w-5" />

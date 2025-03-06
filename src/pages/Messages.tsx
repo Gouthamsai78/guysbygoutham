@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState, useEffect, useCallback } from "react";
 import { Search } from "lucide-react";
 import CustomNavbar from "@/components/CustomNavbar";
 import MessageThread from "@/components/MessageThread";
@@ -7,7 +8,13 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/auth";
 import { Message, MessageThread as MessageThreadType } from "@/types";
 import { cn } from "@/lib/utils";
-import { getMessageThreads, getMessages, sendMessage, markThreadAsRead } from "@/services/messageService";
+import { 
+  getMessageThreads, 
+  getMessages, 
+  sendMessage, 
+  markThreadAsRead,
+  subscribeToMessages
+} from "@/services/messageService";
 import { toast } from "sonner";
 
 const Messages = () => {
@@ -18,6 +25,7 @@ const Messages = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   
+  // Fetch message threads when user loads the page
   useEffect(() => {
     const fetchMessageThreads = async () => {
       if (!user) return;
@@ -40,6 +48,7 @@ const Messages = () => {
     fetchMessageThreads();
   }, [user]);
   
+  // Fetch messages when active thread changes
   useEffect(() => {
     const fetchMessages = async () => {
       if (!user || !activeThreadId) return;
@@ -74,7 +83,65 @@ const Messages = () => {
     fetchMessages();
   }, [user, activeThreadId, messageThreads]);
   
-  const handleSendMessage = async (threadId: string, content: string, replyToId?: string) => {
+  // Subscribe to real-time message updates
+  useEffect(() => {
+    if (!user) return;
+    
+    // Set up subscription
+    const unsubscribe = subscribeToMessages(user.id, (newMessage) => {
+      // Check if message belongs to active thread
+      if (activeThreadId) {
+        const activeThread = messageThreads.find(thread => thread.id === activeThreadId);
+        if (activeThread) {
+          const otherUser = activeThread.participants.find(p => p.id !== user.id);
+          if (otherUser && newMessage.senderId === otherUser.id) {
+            // Add message to the current conversation
+            setMessages(prev => [...prev, newMessage]);
+            
+            // Mark as read if viewing the thread
+            markThreadAsRead(user.id, activeThreadId);
+            return;
+          }
+        }
+      }
+      
+      // Update thread list with the new message
+      setMessageThreads(threads => {
+        return threads.map(thread => {
+          // Find the thread this message belongs to
+          const otherUser = thread.participants.find(p => p.id !== user.id);
+          if (otherUser && otherUser.id === newMessage.senderId) {
+            // Update the thread with the new message and increment unread count
+            return {
+              ...thread,
+              lastMessage: newMessage,
+              unreadCount: thread.unreadCount + 1
+            };
+          }
+          return thread;
+        });
+      });
+      
+      // Show notification for new message
+      const sender = messageThreads.find(thread => 
+        thread.participants.some(p => p.id === newMessage.senderId)
+      )?.participants.find(p => p.id === newMessage.senderId);
+      
+      if (sender) {
+        toast(`New message from ${sender.name}`, {
+          description: newMessage.content.slice(0, 50)
+        });
+      }
+    });
+    
+    // Clean up subscription on unmount
+    return () => {
+      unsubscribe();
+    };
+  }, [user, messageThreads, activeThreadId]);
+  
+  // Handle sending messages
+  const handleSendMessage = useCallback(async (threadId: string, content: string, replyToId?: string, file?: File) => {
     if (!user) return;
     
     const activeThread = messageThreads.find(thread => thread.id === threadId);
@@ -84,23 +151,18 @@ const Messages = () => {
     if (!otherUser) return;
     
     try {
-      const newMessage = await sendMessage(user.id, otherUser.id, content, replyToId);
+      const newMessage = await sendMessage(user.id, otherUser.id, content, replyToId, file);
+      
+      // Add the new message to the current conversation
       setMessages(prevMessages => [...prevMessages, newMessage]);
       
+      // Update thread with last message
       setMessageThreads(threads => 
         threads.map(thread => 
           thread.id === threadId 
             ? { 
                 ...thread, 
-                lastMessage: {
-                  id: newMessage.id,
-                  senderId: newMessage.senderId,
-                  receiverId: newMessage.receiverId,
-                  content: newMessage.content,
-                  createdAt: newMessage.createdAt,
-                  read: false,
-                  replyToId: newMessage.replyToId
-                } 
+                lastMessage: newMessage
               }
             : thread
         )
@@ -109,8 +171,9 @@ const Messages = () => {
       console.error("Error sending message:", error);
       toast.error(error.message || "Failed to send message");
     }
-  };
+  }, [user, messageThreads]);
   
+  // Filter threads based on search query
   const filteredThreads = messageThreads.filter((thread) =>
     thread.participants.some(
       (participant) =>
@@ -192,7 +255,11 @@ const Messages = () => {
                           <div className="flex justify-between items-center">
                             <p className="text-sm text-gray-600 truncate mr-2">
                               {thread.lastMessage.senderId === user.id ? 'You: ' : ''}
-                              {thread.lastMessage.content}
+                              {thread.lastMessage.fileUrl && !thread.lastMessage.content.includes("Voice message") 
+                                ? '📎 File' 
+                                : thread.lastMessage.content.includes("Voice message")
+                                ? '🎤 Voice message'
+                                : thread.lastMessage.content}
                             </p>
                             {thread.unreadCount > 0 && (
                               <span className="bg-guys-primary text-white text-xs font-medium rounded-full h-5 w-5 flex items-center justify-center">

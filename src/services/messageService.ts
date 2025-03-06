@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Message, MessageThread, User } from "@/types";
 import { toast } from "sonner";
@@ -102,7 +103,9 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
           content: latestMessage.content,
           createdAt: latestMessage.created_at,
           read: latestMessage.read,
-          replyToId: latestMessage.reply_to_id
+          replyToId: latestMessage.reply_to_id,
+          fileUrl: latestMessage.file_url,
+          fileType: latestMessage.file_type
         };
         
         // Check if there are unread messages
@@ -181,7 +184,9 @@ export const getMessages = async (
       content: msg.content,
       createdAt: msg.created_at,
       read: msg.read,
-      replyToId: msg.reply_to_id
+      replyToId: msg.reply_to_id,
+      fileUrl: msg.file_url,
+      fileType: msg.file_type
     }));
     
     return formattedMessages;
@@ -192,11 +197,60 @@ export const getMessages = async (
   }
 };
 
+// Function to upload a file to Supabase storage
+const uploadFile = async (file: File, userId: string): Promise<string> => {
+  try {
+    // Create a unique file path
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+    
+    // Check if bucket exists, create if not
+    const { error: bucketError } = await supabase.storage
+      .getBucket('messages');
+    
+    if (bucketError) {
+      // Bucket doesn't exist, create it
+      const { error: createError } = await supabase.storage
+        .createBucket('messages', { public: true });
+        
+      if (createError) {
+        console.error("Error creating bucket:", createError);
+        throw createError;
+      }
+    }
+    
+    // Upload the file
+    const { error: uploadError } = await supabase.storage
+      .from('messages')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      throw uploadError;
+    }
+    
+    // Get the public URL
+    const { data: urlData } = supabase.storage
+      .from('messages')
+      .getPublicUrl(filePath);
+      
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error("Error uploading file:", error);
+    throw error;
+  }
+};
+
 export const sendMessage = async (
   senderId: string,
   receiverId: string,
   content: string,
-  replyToId?: string
+  replyToId?: string,
+  file?: File
 ): Promise<Message> => {
   try {
     // Check if the sender follows the receiver
@@ -216,7 +270,14 @@ export const sendMessage = async (
       throw new Error("You can only message users you follow");
     }
 
-    console.log("Sending message:", { senderId, receiverId, content, replyToId });
+    let fileUrl;
+    let fileType;
+    
+    // If a file is provided, upload it first
+    if (file) {
+      fileUrl = await uploadFile(file, senderId);
+      fileType = file.type;
+    }
     
     // Insert the message into the messages table
     const { data, error } = await supabase
@@ -226,7 +287,9 @@ export const sendMessage = async (
         receiver_id: receiverId,
         content: content,
         read: false,
-        reply_to_id: replyToId
+        reply_to_id: replyToId,
+        file_url: fileUrl,
+        file_type: fileType
       })
       .select()
       .single();
@@ -244,7 +307,9 @@ export const sendMessage = async (
       content: data.content,
       createdAt: data.created_at,
       read: data.read,
-      replyToId: data.reply_to_id
+      replyToId: data.reply_to_id,
+      fileUrl: data.file_url,
+      fileType: data.file_type
     };
     
     return newMessage;
@@ -262,11 +327,14 @@ export const markThreadAsRead = async (
   try {
     // Extract the other user ID from the thread ID
     // Format is "thread-{currentUserId}-{otherUserId}"
-    const otherUserId = threadId.split('-')[2];
+    const parts = threadId.split('-');
     
-    if (!otherUserId) {
-      throw new Error("Invalid thread ID");
+    if (parts.length < 3) {
+      console.error("Invalid thread ID format:", threadId);
+      return;
     }
+    
+    const otherUserId = parts[2];
     
     // Mark all messages from the other user as read
     const { error } = await supabase
@@ -284,4 +352,40 @@ export const markThreadAsRead = async (
     console.error("Error marking thread as read:", error);
     // Don't show a toast for this error as it's not critical
   }
+};
+
+// Set up real-time updates for messages
+export const subscribeToMessages = (
+  userId: string, 
+  callback: (message: Message) => void
+) => {
+  const channel = supabase
+    .channel('public:messages')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `receiver_id=eq.${userId}`
+    }, (payload) => {
+      // Convert the new message to our Message type
+      const newMessage: Message = {
+        id: payload.new.id,
+        senderId: payload.new.sender_id,
+        receiverId: payload.new.receiver_id,
+        content: payload.new.content,
+        createdAt: payload.new.created_at,
+        read: payload.new.read,
+        replyToId: payload.new.reply_to_id,
+        fileUrl: payload.new.file_url,
+        fileType: payload.new.file_type
+      };
+      
+      callback(newMessage);
+    })
+    .subscribe();
+    
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
 };

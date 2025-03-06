@@ -43,6 +43,8 @@ export interface Message {
   createdAt: string;
   read: boolean;
   replyToId?: string;
+  fileUrl?: string;
+  fileType?: string;
 }
 
 export interface MessageThread {
