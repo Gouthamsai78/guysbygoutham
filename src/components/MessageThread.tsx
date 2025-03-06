@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageCircle, Send } from "lucide-react";
+import { MessageCircle, Send, CornerUpLeft } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { MessageThread as MessageThreadType, Message } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface MessageThreadProps {
   thread: MessageThreadType;
   messages?: Message[];
-  onSendMessage?: (threadId: string, message: string) => void;
+  onSendMessage?: (threadId: string, message: string, replyToId?: string) => void;
 }
 
 const MessageThread: React.FC<MessageThreadProps> = ({
@@ -24,7 +24,9 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [localMessages, setLocalMessages] = useState<Message[]>(messages);
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
   
   // Memoize the otherUser to avoid recalculating it on every render
   const otherUser = user ? thread.participants.find((p) => p.id !== user.id) : null;
@@ -71,7 +73,8 @@ const MessageThread: React.FC<MessageThreadProps> = ({
               receiverId: newMessage.receiver_id,
               content: newMessage.content,
               createdAt: newMessage.created_at,
-              read: newMessage.read
+              read: newMessage.read,
+              replyToId: newMessage.reply_to_id
             };
             
             // Use functional update to avoid stale state
@@ -103,8 +106,9 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     if (newMessage.trim() && onSendMessage) {
       try {
         setIsSending(true);
-        await onSendMessage(thread.id, newMessage);
+        await onSendMessage(thread.id, newMessage, replyToMessage?.id);
         setNewMessage("");
+        setReplyToMessage(null);
         // Scroll to bottom after sending
         setTimeout(scrollToBottom, 100);
       } catch (error) {
@@ -119,6 +123,27 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleReply = (message: Message) => {
+    setReplyToMessage(message);
+    // Focus on input after selecting message to reply
+    document.querySelector('.guys-input')?.focus();
+  };
+
+  const cancelReply = () => {
+    setReplyToMessage(null);
+  };
+
+  const scrollToMessage = (messageId: string) => {
+    const messageElement = messageRefs.current[messageId];
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageElement.classList.add('bg-highlight-pulse');
+      setTimeout(() => {
+        messageElement.classList.remove('bg-highlight-pulse');
+      }, 2000);
+    }
   };
   
   return (
@@ -148,23 +173,71 @@ const MessageThread: React.FC<MessageThreadProps> = ({
           <>
             {localMessages.map((message) => {
               const isCurrentUser = message.senderId === user.id;
+              const replyToMessage = message.replyToId 
+                ? localMessages.find(m => m.id === message.replyToId) 
+                : null;
+                
               return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "max-w-[75%] p-3 rounded-lg",
-                    isCurrentUser
-                      ? "ml-auto bg-guys-primary text-white rounded-br-none"
-                      : "bg-gray-100 text-gray-800 rounded-bl-none"
-                  )}
+                <div 
+                  key={message.id} 
+                  className="group"
+                  ref={el => messageRefs.current[message.id] = el}
                 >
-                  <p className="text-sm">{message.content}</p>
-                  <p className={cn(
-                    "text-xs mt-1",
-                    isCurrentUser ? "text-guys-primary-foreground opacity-70" : "text-gray-500"
-                  )}>
-                    {formatTime(message.createdAt)}
-                  </p>
+                  {replyToMessage && (
+                    <div 
+                      className={cn(
+                        "flex items-center text-xs mb-1 cursor-pointer",
+                        isCurrentUser ? "justify-end" : "justify-start"
+                      )}
+                      onClick={() => scrollToMessage(replyToMessage.id)}
+                    >
+                      <div className={cn(
+                        "flex items-center px-2 py-1 rounded max-w-[80%] truncate",
+                        isCurrentUser ? "bg-guys-primary bg-opacity-10" : "bg-gray-100"
+                      )}>
+                        <CornerUpLeft className="h-3 w-3 mr-1 opacity-70" />
+                        <span className="italic truncate">
+                          {replyToMessage.senderId === user.id 
+                            ? "You: " 
+                            : `${otherUser.name}: `}
+                          {replyToMessage.content}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div
+                    className={cn(
+                      "max-w-[75%] p-3 rounded-lg relative",
+                      isCurrentUser
+                        ? "ml-auto bg-guys-primary text-white rounded-br-none"
+                        : "bg-gray-100 text-gray-800 rounded-bl-none"
+                    )}
+                    onTouchStart={(e) => {
+                      if (e.touches.length === 1) {
+                        handleReply(message);
+                      }
+                    }}
+                  >
+                    <button 
+                      className={cn(
+                        "absolute top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity",
+                        isCurrentUser ? "left-0 -translate-x-[30px]" : "right-0 translate-x-[30px]"
+                      )}
+                      onClick={() => handleReply(message)}
+                      aria-label="Reply to message"
+                    >
+                      <CornerUpLeft className="h-5 w-5 text-gray-500 hover:text-guys-primary" />
+                    </button>
+                    
+                    <p className="text-sm">{message.content}</p>
+                    <p className={cn(
+                      "text-xs mt-1",
+                      isCurrentUser ? "text-guys-primary-foreground opacity-70" : "text-gray-500"
+                    )}>
+                      {formatTime(message.createdAt)}
+                    </p>
+                  </div>
                 </div>
               );
             })}
@@ -173,6 +246,27 @@ const MessageThread: React.FC<MessageThreadProps> = ({
         )}
       </div>
       
+      {/* Reply Preview */}
+      {replyToMessage && (
+        <div className="px-3 pt-2 pb-0 border-t border-gray-100 bg-gray-50 flex items-start">
+          <div className="flex-1 bg-white border rounded-md p-2 text-sm flex">
+            <CornerUpLeft className="h-4 w-4 mr-2 text-guys-primary flex-shrink-0 mt-0.5" />
+            <div className="flex-1 overflow-hidden">
+              <p className="font-medium text-xs">
+                Replying to {replyToMessage.senderId === user.id ? "yourself" : otherUser.name}
+              </p>
+              <p className="truncate text-gray-600">{replyToMessage.content}</p>
+            </div>
+          </div>
+          <button 
+            className="ml-2 text-gray-400 hover:text-gray-600"
+            onClick={cancelReply}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
       {/* Message Input */}
       <div className="p-3 border-t">
         <div className="flex space-x-2">
@@ -180,7 +274,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
+            placeholder={replyToMessage ? "Type your reply..." : "Type a message..."}
             className="guys-input flex-grow p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-guys-primary"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {

@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   username: string;
@@ -41,6 +42,7 @@ export interface Message {
   content: string;
   createdAt: string;
   read: boolean;
+  replyToId?: string;
 }
 
 export interface MessageThread {

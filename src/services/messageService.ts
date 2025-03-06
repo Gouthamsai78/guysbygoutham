@@ -180,7 +180,8 @@ export const getMessages = async (
       receiverId: msg.receiver_id,
       content: msg.content,
       createdAt: msg.created_at,
-      read: msg.read
+      read: msg.read,
+      replyToId: msg.reply_to_id
     }));
     
     return formattedMessages;
@@ -194,7 +195,8 @@ export const getMessages = async (
 export const sendMessage = async (
   senderId: string,
   receiverId: string,
-  content: string
+  content: string,
+  replyToId?: string
 ): Promise<Message> => {
   try {
     // Check if the sender follows the receiver
@@ -214,7 +216,7 @@ export const sendMessage = async (
       throw new Error("You can only message users you follow");
     }
 
-    console.log("Sending message:", { senderId, receiverId, content });
+    console.log("Sending message:", { senderId, receiverId, content, replyToId });
     
     // Insert the message into the messages table
     const { data, error } = await supabase
@@ -223,7 +225,8 @@ export const sendMessage = async (
         sender_id: senderId,
         receiver_id: receiverId,
         content: content,
-        read: false
+        read: false,
+        reply_to_id: replyToId
       })
       .select()
       .single();
@@ -240,7 +243,8 @@ export const sendMessage = async (
       receiverId: data.receiver_id,
       content: data.content,
       createdAt: data.created_at,
-      read: data.read
+      read: data.read,
+      replyToId: data.reply_to_id
     };
     
     return newMessage;

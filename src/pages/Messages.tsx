@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import CustomNavbar from "@/components/CustomNavbar";
@@ -27,7 +26,6 @@ const Messages = () => {
         const threads = await getMessageThreads(user.id);
         setMessageThreads(threads);
         
-        // Set the first thread as active by default
         if (threads.length > 0 && !activeThreadId) {
           setActiveThreadId(threads[0].id);
         }
@@ -59,7 +57,6 @@ const Messages = () => {
         if (activeThread.unreadCount > 0) {
           await markThreadAsRead(user.id, activeThreadId);
           
-          // Update the threads to mark messages as read
           setMessageThreads(threads => 
             threads.map(thread => 
               thread.id === activeThreadId 
@@ -77,7 +74,7 @@ const Messages = () => {
     fetchMessages();
   }, [user, activeThreadId, messageThreads]);
   
-  const handleSendMessage = async (threadId: string, content: string) => {
+  const handleSendMessage = async (threadId: string, content: string, replyToId?: string) => {
     if (!user) return;
     
     const activeThread = messageThreads.find(thread => thread.id === threadId);
@@ -87,10 +84,9 @@ const Messages = () => {
     if (!otherUser) return;
     
     try {
-      const newMessage = await sendMessage(user.id, otherUser.id, content);
+      const newMessage = await sendMessage(user.id, otherUser.id, content, replyToId);
       setMessages(prevMessages => [...prevMessages, newMessage]);
       
-      // Update the last message in the thread
       setMessageThreads(threads => 
         threads.map(thread => 
           thread.id === threadId 
@@ -102,7 +98,8 @@ const Messages = () => {
                   receiverId: newMessage.receiverId,
                   content: newMessage.content,
                   createdAt: newMessage.createdAt,
-                  read: false
+                  read: false,
+                  replyToId: newMessage.replyToId
                 } 
               }
             : thread
@@ -110,7 +107,7 @@ const Messages = () => {
       );
     } catch (error) {
       console.error("Error sending message:", error);
-      // Toast is shown in sendMessage function on error
+      toast.error(error.message || "Failed to send message");
     }
   };
   
@@ -148,7 +145,6 @@ const Messages = () => {
       <div className="max-w-7xl mx-auto">
         <div className="bg-white border-b shadow-sm h-[calc(100vh-4rem)]">
           <div className="grid md:grid-cols-3 h-full">
-            {/* Messages List */}
             <div className="border-r md:col-span-1 flex flex-col h-full">
               <div className="p-4 border-b">
                 <h2 className="text-xl font-bold mb-4">Messages</h2>
@@ -219,7 +215,6 @@ const Messages = () => {
               </div>
             </div>
             
-            {/* Active Conversation */}
             <div className="md:col-span-2 h-full">
               {activeThread ? (
                 <MessageThread
