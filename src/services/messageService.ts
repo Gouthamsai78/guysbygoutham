@@ -205,21 +205,6 @@ const uploadFile = async (file: File, userId: string): Promise<string> => {
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
     
-    // Check if bucket exists, create if not
-    const { error: bucketError } = await supabase.storage
-      .getBucket('messages');
-    
-    if (bucketError) {
-      // Bucket doesn't exist, create it
-      const { error: createError } = await supabase.storage
-        .createBucket('messages', { public: true });
-        
-      if (createError) {
-        console.error("Error creating bucket:", createError);
-        throw createError;
-      }
-    }
-    
     // Upload the file
     const { error: uploadError } = await supabase.storage
       .from('messages')
