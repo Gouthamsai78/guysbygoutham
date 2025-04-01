@@ -366,6 +366,7 @@ export const subscribeToMessages = (
 // Mark a message as delivered
 export const markMessageAsDelivered = async (messageId: string): Promise<void> => {
   try {
+    // Fix: Use the rpc method correctly for our custom function
     await supabase.rpc('mark_message_delivered', { message_id: messageId });
   } catch (error) {
     console.error("Error marking message as delivered:", error);
@@ -375,6 +376,7 @@ export const markMessageAsDelivered = async (messageId: string): Promise<void> =
 // Increment post view count
 export const incrementPostView = async (postId: string): Promise<void> => {
   try {
+    // Fix: Use the rpc method correctly for our custom function
     await supabase.rpc('increment_post_view', { post_id: postId });
   } catch (error) {
     console.error("Error incrementing post view:", error);
@@ -395,7 +397,7 @@ export const getPostViews = async (postId: string): Promise<number> => {
       return 0;
     }
     
-    return data.views || 0;
+    return data?.views || 0;
   } catch (error) {
     console.error("Error getting post views:", error);
     return 0;

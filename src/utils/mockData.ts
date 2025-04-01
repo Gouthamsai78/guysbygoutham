@@ -129,6 +129,7 @@ export const mockMessages: Message[] = [
     content: "Hey, how's it going?",
     createdAt: "2023-06-15T09:23:12Z",
     read: true,
+    delivered: true,
   },
   {
     id: "2",
@@ -137,6 +138,7 @@ export const mockMessages: Message[] = [
     content: "Not bad! Just working on some new stuff. How about you?",
     createdAt: "2023-06-15T09:25:45Z",
     read: true,
+    delivered: true,
   },
   {
     id: "3",
@@ -145,6 +147,7 @@ export const mockMessages: Message[] = [
     content: "Same here. Want to hang out this weekend?",
     createdAt: "2023-06-15T09:30:22Z",
     read: true,
+    delivered: true,
   },
   {
     id: "4",
@@ -153,6 +156,7 @@ export const mockMessages: Message[] = [
     content: "Loved your latest post! Where was that taken?",
     createdAt: "2023-06-14T14:12:55Z",
     read: false,
+    delivered: true,
   },
 ];
 
@@ -179,6 +183,7 @@ export const mockMessageThreads: MessageThread[] = [
       content: "Thanks for the follow! What kind of content do you create?",
       createdAt: "2023-06-13T18:45:32Z",
       read: true,
+      delivered: true,
     },
     unreadCount: 0,
   },
