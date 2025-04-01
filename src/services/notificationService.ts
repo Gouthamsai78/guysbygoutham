@@ -21,11 +21,11 @@ export interface Notification {
 
 export const getNotifications = async (userId: string): Promise<Notification[]> => {
   try {
-    // Need to use the raw RPC query since the notifications table
-    // isn't in the generated TypeScript types
-    const { data, error } = await supabase.rpc('get_notifications', {
-      p_user_id: userId
-    });
+    // Call the RPC function to get notifications
+    const { data, error } = await supabase
+      .rpc('get_notifications', {
+        p_user_id: userId
+      });
 
     if (error) {
       console.error('Error in RPC get_notifications:', error);
@@ -71,7 +71,7 @@ export const getNotifications = async (userId: string): Promise<Notification[]> 
     }
 
     // If RPC works, transform the result
-    return (data || []).map(item => ({
+    return (data || []).map((item: any) => ({
       id: item.id,
       userId: item.user_id,
       actorId: item.actor_id,
@@ -94,10 +94,11 @@ export const getNotifications = async (userId: string): Promise<Notification[]> 
 
 export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
   try {
-    // Use a generic query to update the notifications table
-    const { error } = await supabase.rpc('mark_notification_as_read', {
-      p_notification_id: notificationId
-    });
+    // Call the RPC function to mark notification as read
+    const { error } = await supabase
+      .rpc('mark_notification_as_read', {
+        p_notification_id: notificationId
+      });
 
     if (error) {
       console.error('Error in RPC mark_notification_as_read:', error);
@@ -118,9 +119,10 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
 
 export const markAllNotificationsAsRead = async (userId: string): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('mark_all_notifications_as_read', {
-      p_user_id: userId
-    });
+    const { error } = await supabase
+      .rpc('mark_all_notifications_as_read', {
+        p_user_id: userId
+      });
 
     if (error) {
       console.error('Error in RPC mark_all_notifications_as_read:', error);
@@ -154,9 +156,10 @@ export const subscribeToNotifications = (userId: string, onUpdate: (notification
       async (payload) => {
         try {
           // Fetch the complete notification with actor details
-          const { data, error } = await supabase.rpc('get_notification_by_id', {
-            p_notification_id: payload.new.id
-          });
+          const { data, error } = await supabase
+            .rpc('get_notification_by_id', {
+              p_notification_id: payload.new.id
+            });
 
           if (error) {
             console.error('Error in RPC get_notification_by_id:', error);
@@ -208,20 +211,21 @@ export const subscribeToNotifications = (userId: string, onUpdate: (notification
           }
 
           // If RPC works, transform the result
-          if (data) {
+          if (data && data[0]) {
+            const item = data[0];
             const notification: Notification = {
-              id: data.id,
-              userId: data.user_id,
-              actorId: data.actor_id,
-              type: data.type as NotificationType,
-              postId: data.post_id,
-              read: data.read,
-              createdAt: data.created_at,
-              actor: data.actor_profile ? {
-                id: data.actor_profile.id,
-                name: data.actor_profile.full_name,
-                username: data.actor_profile.username,
-                profilePicture: data.actor_profile.profile_picture
+              id: item.id,
+              userId: item.user_id,
+              actorId: item.actor_id,
+              type: item.type as NotificationType,
+              postId: item.post_id,
+              read: item.read,
+              createdAt: item.created_at,
+              actor: item.actor_profile ? {
+                id: item.actor_profile.id,
+                name: item.actor_profile.full_name,
+                username: item.actor_profile.username,
+                profilePicture: item.actor_profile.profile_picture
               } : undefined
             };
 
@@ -248,12 +252,13 @@ export const createNotification = async (
   postId?: string
 ): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('create_notification', {
-      p_user_id: userId,
-      p_actor_id: actorId,
-      p_type: type,
-      p_post_id: postId
-    });
+    const { error } = await supabase
+      .rpc('create_notification', {
+        p_user_id: userId,
+        p_actor_id: actorId,
+        p_type: type,
+        p_post_id: postId
+      });
 
     if (error) {
       console.error('Error in RPC create_notification:', error);

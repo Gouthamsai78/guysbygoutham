@@ -49,10 +49,11 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
     // Get the latest message with each followed user (if any)
     const messagesPromises = followedUserIds.map(async (followedId) => {
       // Use RPC to get the latest message
-      const { data: messageData } = await supabase.rpc('get_latest_message', {
-        p_user_id_1: userId,
-        p_user_id_2: followedId
-      });
+      const { data: messageData } = await supabase
+        .rpc('get_latest_message', {
+          p_user_id_1: userId,
+          p_user_id_2: followedId
+        });
       
       if (messageData && messageData.length > 0) {
         return { followedId, latestMessage: messageData[0] };
@@ -115,9 +116,9 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
           createdAt: latestMessage.created_at,
           read: latestMessage.read,
           replyToId: latestMessage.reply_to_id,
-          // Handle file fields explicitly
-          fileUrl: 'file_url' in latestMessage ? latestMessage.file_url : undefined,
-          fileType: 'file_type' in latestMessage ? latestMessage.file_type : undefined
+          // Handle file fields explicitly with type safety
+          fileUrl: latestMessage.file_url || undefined,
+          fileType: latestMessage.file_type || undefined
         };
         
         // Check if there are unread messages
@@ -177,10 +178,11 @@ export const getMessages = async (
     }
 
     // Use RPC to get messages between users
-    const { data: messagesData, error: messagesRpcError } = await supabase.rpc('get_messages_between_users', {
-      p_user_id_1: userId,
-      p_user_id_2: otherUserId
-    });
+    const { data: messagesData, error: messagesRpcError } = await supabase
+      .rpc('get_messages_between_users', {
+        p_user_id_1: userId,
+        p_user_id_2: otherUserId
+      });
 
     if (messagesRpcError) {
       console.error("Error in RPC get_messages_between_users:", messagesRpcError);
@@ -206,16 +208,16 @@ export const getMessages = async (
         createdAt: msg.created_at,
         read: msg.read,
         replyToId: msg.reply_to_id,
-        // Handle file fields explicitly
-        fileUrl: 'file_url' in msg ? msg.file_url : undefined,
-        fileType: 'file_type' in msg ? msg.file_type : undefined
+        // Handle file fields explicitly with type safety
+        fileUrl: msg.file_url || undefined,
+        fileType: msg.file_type || undefined
       }));
       
       return formattedMessages;
     }
 
-    // Convert RPC result to Message type
-    const formattedMessages: Message[] = (messagesData || []).map(msg => ({
+    // Convert RPC result to Message type with proper type handling
+    const formattedMessages: Message[] = (messagesData || []).map((msg: any) => ({
       id: msg.id,
       senderId: msg.sender_id,
       receiverId: msg.receiver_id,
@@ -223,8 +225,8 @@ export const getMessages = async (
       createdAt: msg.created_at,
       read: msg.read,
       replyToId: msg.reply_to_id,
-      fileUrl: msg.file_url,
-      fileType: msg.file_type
+      fileUrl: msg.file_url || undefined,
+      fileType: msg.file_type || undefined
     }));
     
     return formattedMessages;
@@ -293,8 +295,8 @@ export const sendMessage = async (
       throw new Error("You can only message users you follow");
     }
 
-    let fileUrl;
-    let fileType;
+    let fileUrl: string | undefined;
+    let fileType: string | undefined;
     
     // If a file is provided, upload it first
     if (file) {
@@ -303,14 +305,15 @@ export const sendMessage = async (
     }
     
     // Use RPC to insert message
-    const { data: messageData, error: rpcError } = await supabase.rpc('send_message', {
-      p_sender_id: senderId,
-      p_receiver_id: receiverId,
-      p_content: content,
-      p_reply_to_id: replyToId,
-      p_file_url: fileUrl,
-      p_file_type: fileType
-    });
+    const { data: messageData, error: rpcError } = await supabase
+      .rpc('send_message', {
+        p_sender_id: senderId,
+        p_receiver_id: receiverId,
+        p_content: content,
+        p_reply_to_id: replyToId,
+        p_file_url: fileUrl,
+        p_file_type: fileType
+      });
 
     if (rpcError) {
       console.error("Error in RPC send_message:", rpcError);
@@ -344,25 +347,29 @@ export const sendMessage = async (
         createdAt: data.created_at,
         read: data.read,
         replyToId: data.reply_to_id,
-        // Handle file fields explicitly
-        fileUrl: 'file_url' in data ? data.file_url : undefined,
-        fileType: 'file_type' in data ? data.file_type : undefined
+        fileUrl: data.file_url || undefined,
+        fileType: data.file_type || undefined
       };
       
       return newMessage;
     }
     
-    // Convert RPC result to Message type
+    // Convert RPC result to Message type with proper type safety
+    if (!messageData || messageData.length === 0) {
+      throw new Error("Failed to send message: No data returned");
+    }
+    
+    const msg = messageData[0];
     const newMessage: Message = {
-      id: messageData.id,
-      senderId: messageData.sender_id,
-      receiverId: messageData.receiver_id,
-      content: messageData.content,
-      createdAt: messageData.created_at,
-      read: messageData.read,
-      replyToId: messageData.reply_to_id,
-      fileUrl: messageData.file_url,
-      fileType: messageData.file_type
+      id: msg.id,
+      senderId: msg.sender_id,
+      receiverId: msg.receiver_id,
+      content: msg.content,
+      createdAt: msg.created_at,
+      read: msg.read,
+      replyToId: msg.reply_to_id,
+      fileUrl: msg.file_url || undefined,
+      fileType: msg.file_type || undefined
     };
     
     return newMessage;
@@ -429,8 +436,8 @@ export const subscribeToMessages = (
         createdAt: payload.new.created_at,
         read: payload.new.read,
         replyToId: payload.new.reply_to_id,
-        fileUrl: payload.new.file_url,
-        fileType: payload.new.file_type
+        fileUrl: payload.new.file_url || undefined,
+        fileType: payload.new.file_type || undefined
       };
       
       callback(newMessage);
