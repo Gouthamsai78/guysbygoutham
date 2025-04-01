@@ -104,6 +104,7 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
           content: latestMessage.content,
           createdAt: latestMessage.created_at,
           read: latestMessage.read,
+          delivered: latestMessage.delivered || false,
           replyToId: latestMessage.reply_to_id,
           fileUrl: latestMessage.file_url || undefined,
           fileType: latestMessage.file_type || undefined
@@ -121,7 +122,8 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
           receiverId: userId,
           content: "Start a conversation...",
           createdAt: new Date().toISOString(),
-          read: true
+          read: true,
+          delivered: false
         };
       }
 
@@ -177,6 +179,17 @@ export const getMessages = async (
       throw messagesError;
     }
 
+    // Mark messages as delivered if current user is the receiver
+    const messagesToMark = (messages || [])
+      .filter(msg => msg.receiver_id === userId && !msg.delivered)
+      .map(msg => msg.id);
+    
+    if (messagesToMark.length > 0) {
+      for (const messageId of messagesToMark) {
+        await supabase.rpc('mark_message_delivered', { message_id: messageId });
+      }
+    }
+
     // Convert to our Message type
     const formattedMessages: Message[] = (messages || []).map(msg => ({
       id: msg.id,
@@ -185,6 +198,7 @@ export const getMessages = async (
       content: msg.content,
       createdAt: msg.created_at,
       read: msg.read,
+      delivered: msg.delivered || false,
       replyToId: msg.reply_to_id,
       fileUrl: msg.file_url || undefined,
       fileType: msg.file_type || undefined
@@ -243,6 +257,7 @@ export const sendMessage = async (
         receiver_id: receiverId,
         content: content,
         read: false,
+        delivered: false,
         reply_to_id: replyToId,
         file_url: fileUrl,
         file_type: fileType
@@ -263,6 +278,7 @@ export const sendMessage = async (
       content: data.content,
       createdAt: data.created_at,
       read: data.read,
+      delivered: data.delivered || false,
       replyToId: data.reply_to_id,
       fileUrl: data.file_url || undefined,
       fileType: data.file_type || undefined
@@ -331,6 +347,7 @@ export const subscribeToMessages = (
         content: payload.new.content,
         createdAt: payload.new.created_at,
         read: payload.new.read,
+        delivered: payload.new.delivered || false,
         replyToId: payload.new.reply_to_id,
         fileUrl: payload.new.file_url || undefined,
         fileType: payload.new.file_type || undefined
@@ -344,4 +361,43 @@ export const subscribeToMessages = (
   return () => {
     supabase.removeChannel(channel);
   };
+};
+
+// Mark a message as delivered
+export const markMessageAsDelivered = async (messageId: string): Promise<void> => {
+  try {
+    await supabase.rpc('mark_message_delivered', { message_id: messageId });
+  } catch (error) {
+    console.error("Error marking message as delivered:", error);
+  }
+};
+
+// Increment post view count
+export const incrementPostView = async (postId: string): Promise<void> => {
+  try {
+    await supabase.rpc('increment_post_view', { post_id: postId });
+  } catch (error) {
+    console.error("Error incrementing post view:", error);
+  }
+};
+
+// Get post views count
+export const getPostViews = async (postId: string): Promise<number> => {
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('views')
+      .eq('id', postId)
+      .single();
+      
+    if (error) {
+      console.error("Error getting post views:", error);
+      return 0;
+    }
+    
+    return data.views || 0;
+  } catch (error) {
+    console.error("Error getting post views:", error);
+    return 0;
+  }
 };

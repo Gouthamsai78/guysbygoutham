@@ -127,6 +127,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          delivered: boolean | null
           file_type: string | null
           file_url: string | null
           id: string
@@ -138,6 +139,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          delivered?: boolean | null
           file_type?: string | null
           file_url?: string | null
           id?: string
@@ -149,6 +151,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          delivered?: boolean | null
           file_type?: string | null
           file_url?: string | null
           id?: string
@@ -254,6 +257,7 @@ export type Database = {
           updated_at: string | null
           user_id: string
           video_url: string | null
+          views: number | null
         }
         Insert: {
           comments?: number | null
@@ -265,6 +269,7 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           video_url?: string | null
+          views?: number | null
         }
         Update: {
           comments?: number | null
@@ -276,6 +281,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           video_url?: string | null
+          views?: number | null
         }
         Relationships: [
           {
@@ -342,6 +348,18 @@ export type Database = {
           row_count: number
         }
         Returns: number
+      }
+      increment_post_view: {
+        Args: {
+          post_id: string
+        }
+        Returns: undefined
+      }
+      mark_message_delivered: {
+        Args: {
+          message_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

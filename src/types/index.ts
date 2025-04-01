@@ -24,6 +24,7 @@ export interface Post {
   likesCount: number;
   commentsCount: number;
   isLiked: boolean;
+  views?: number;
 }
 
 export interface Comment {
@@ -42,6 +43,7 @@ export interface Message {
   content: string;
   createdAt: string;
   read: boolean;
+  delivered: boolean;
   replyToId?: string;
   fileUrl?: string;
   fileType?: string;

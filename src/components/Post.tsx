@@ -1,7 +1,7 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Heart, MessageCircle, Share2, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Share2, MoreHorizontal, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Post as PostType } from "@/types";
 import { useAuth } from "@/contexts/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { incrementPostView } from "@/services/messageService";
 
 interface PostProps {
   post: PostType;
@@ -24,8 +25,27 @@ const Post: React.FC<PostProps> = ({ post }) => {
   const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likesCount, setLikesCount] = useState(post.likesCount);
+  const [viewsCount, setViewsCount] = useState(post.views || 0);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  
+  useEffect(() => {
+    // Only increment view count when viewing in a detail page
+    // This helps avoid incrementing views when scrolling through feed
+    if (window.location.pathname.includes(`/post/${post.id}`)) {
+      const incrementView = async () => {
+        try {
+          await incrementPostView(post.id);
+          // We don't update the state here to avoid flickering and unnecessary re-renders
+          // The view count will be accurate next time the post is loaded
+        } catch (error) {
+          console.error("Error incrementing view:", error);
+        }
+      };
+
+      incrementView();
+    }
+  }, [post.id]);
 
   const handleLike = async () => {
     if (!user) {
@@ -160,6 +180,10 @@ const Post: React.FC<PostProps> = ({ post }) => {
           <button className="flex items-center text-gray-600">
             <Share2 className="h-5 w-5 mr-1" />
           </button>
+          <div className="flex items-center text-gray-600">
+            <Eye className="h-5 w-5 mr-1" />
+            <span>{viewsCount}</span>
+          </div>
         </div>
       </div>
     </div>

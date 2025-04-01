@@ -176,6 +176,22 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     fileInputRef.current?.click();
   };
 
+  const renderMessageStatus = (message: MessageType) => {
+    if (message.senderId !== user?.id) return null;
+    
+    return (
+      <div className="text-xs text-right mt-1 opacity-70">
+        {message.read ? (
+          <span className="text-blue-500">Seen</span>
+        ) : message.delivered ? (
+          <span className="text-gray-500">Delivered</span>
+        ) : (
+          <span className="text-gray-400">Sent</span>
+        )}
+      </div>
+    );
+  };
+
   if (!user || !otherUser) {
     return <div className="p-8 text-center text-gray-500">Loading conversation...</div>;
   }
@@ -284,16 +300,15 @@ const MessageThread: React.FC<MessageThreadProps> = ({
                   
                   <div onClick={() => handleReplyToMessage(message)}>
                     {message.content}
-                    <div
-                      className={cn(
-                        "text-xs mt-1",
-                        isCurrentUser ? "text-pink-100" : "text-gray-500"
-                      )}
-                    >
+                    <div className={cn(
+                      "text-xs mt-1",
+                      isCurrentUser ? "text-pink-100" : "text-gray-500"
+                    )}>
                       {formatDistanceToNow(new Date(message.createdAt), {
                         addSuffix: true,
                       })}
                     </div>
+                    {isCurrentUser && renderMessageStatus(message)}
                   </div>
                 </div>
               </div>
