@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
 import { Message as MessageType, MessageThread as MessageThreadType } from "@/types";
-import { Send, X, Heart, Image, Mic, Paperclip, Smile, StopCircle } from "lucide-react";
+import { Send, X, Heart, Image, Mic, Paperclip, Smile, StopCircle, Check, CheckCheck, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -180,13 +180,19 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     if (message.senderId !== user?.id) return null;
     
     return (
-      <div className="text-xs text-right mt-1 opacity-70">
+      <div className="text-xs text-right mt-1 opacity-70 flex justify-end items-center">
         {message.read ? (
-          <span className="text-blue-500">Seen</span>
+          <div title="Seen" className="flex items-center text-blue-500">
+            <CheckCheck className="h-3 w-3 ml-1" />
+          </div>
         ) : message.delivered ? (
-          <span className="text-gray-500">Delivered</span>
+          <div title="Delivered" className="flex items-center text-gray-500">
+            <Check className="h-3 w-3 ml-1" />
+          </div>
         ) : (
-          <span className="text-gray-400">Sent</span>
+          <div title="Sent" className="flex items-center text-gray-400">
+            <Clock className="h-3 w-3 ml-1" />
+          </div>
         )}
       </div>
     );

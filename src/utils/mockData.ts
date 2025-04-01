@@ -1,4 +1,3 @@
-
 import { User, Post, MessageThread, Message } from "@/types";
 
 export const mockUsers: User[] = [
@@ -65,6 +64,7 @@ export const mockPosts: Post[] = [
     likesCount: 127,
     commentsCount: 24,
     isLiked: false,
+    views: 328,
   },
   {
     id: "2",
@@ -75,6 +75,7 @@ export const mockPosts: Post[] = [
     likesCount: 89,
     commentsCount: 15,
     isLiked: true,
+    views: 142,
   },
   {
     id: "3",
@@ -86,6 +87,7 @@ export const mockPosts: Post[] = [
     likesCount: 215,
     commentsCount: 42,
     isLiked: false,
+    views: 573,
   },
   {
     id: "4",
@@ -97,6 +99,7 @@ export const mockPosts: Post[] = [
     likesCount: 73,
     commentsCount: 8,
     isLiked: true,
+    views: 189,
   },
   {
     id: "5",
@@ -107,6 +110,7 @@ export const mockPosts: Post[] = [
     likesCount: 45,
     commentsCount: 5,
     isLiked: false,
+    views: 87,
   },
   {
     id: "6",
@@ -118,6 +122,7 @@ export const mockPosts: Post[] = [
     likesCount: 156,
     commentsCount: 29,
     isLiked: false,
+    views: 412,
   },
 ];
 

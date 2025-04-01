@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Heart, MessageCircle, Share2, MoreHorizontal, Eye } from "lucide-react";
@@ -15,7 +14,7 @@ import { Post as PostType } from "@/types";
 import { useAuth } from "@/contexts/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { incrementPostView } from "@/services/messageService";
+import { incrementPostView, getPostViews } from "@/services/messageService";
 
 interface PostProps {
   post: PostType;
@@ -36,8 +35,9 @@ const Post: React.FC<PostProps> = ({ post }) => {
       const incrementView = async () => {
         try {
           await incrementPostView(post.id);
-          // We don't update the state here to avoid flickering and unnecessary re-renders
-          // The view count will be accurate next time the post is loaded
+          // Update the view count from the server
+          const views = await getPostViews(post.id);
+          setViewsCount(views);
         } catch (error) {
           console.error("Error incrementing view:", error);
         }
@@ -180,7 +180,7 @@ const Post: React.FC<PostProps> = ({ post }) => {
           <button className="flex items-center text-gray-600">
             <Share2 className="h-5 w-5 mr-1" />
           </button>
-          <div className="flex items-center text-gray-600">
+          <div className="flex items-center text-gray-600" title={`${viewsCount} views`}>
             <Eye className="h-5 w-5 mr-1" />
             <span>{viewsCount}</span>
           </div>
