@@ -175,30 +175,98 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          actor_id: string
+          comment_id: string | null
+          created_at: string
+          id: string
+          post_id: string | null
+          read: boolean
+          type: string
+          user_id: string
+        }
+        Insert: {
+          actor_id: string
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          read?: boolean
+          type: string
+          user_id: string
+        }
+        Update: {
+          actor_id?: string
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          read?: boolean
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
+          comments: number | null
           content: string
           created_at: string | null
           id: string
           image_url: string | null
+          likes: number | null
           updated_at: string | null
           user_id: string
           video_url: string | null
         }
         Insert: {
+          comments?: number | null
           content: string
           created_at?: string | null
           id?: string
           image_url?: string | null
+          likes?: number | null
           updated_at?: string | null
           user_id: string
           video_url?: string | null
         }
         Update: {
+          comments?: number | null
           content?: string
           created_at?: string | null
           id?: string
           image_url?: string | null
+          likes?: number | null
           updated_at?: string | null
           user_id?: string
           video_url?: string | null

@@ -4,13 +4,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { Home, MessageSquare, Bell, User, PenSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
+import { useNotifications } from "@/contexts/notification";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const Navbar: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
-
-  const notificationCount = 3; // This would normally be fetched from an API
 
   if (!isAuthenticated) {
     return (
@@ -54,9 +54,9 @@ const Navbar: React.FC = () => {
               className="text-gray-500 hover:text-guys-primary transition-colors"
             >
               <Bell className="h-6 w-6" />
-              {notificationCount > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {notificationCount}
+                  {unreadCount}
                 </span>
               )}
             </Link>

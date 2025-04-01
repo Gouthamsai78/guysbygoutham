@@ -20,64 +20,164 @@ export interface Notification {
 }
 
 export const getNotifications = async (userId: string): Promise<Notification[]> => {
-  // In a real app, this would fetch notifications from Supabase
-  // For now, we'll return mock data
-  return [
-    {
-      id: "1",
-      userId,
-      actorId: "user-1",
-      type: "like",
-      postId: "post-1",
-      read: false,
-      createdAt: new Date().toISOString(),
-      actor: {
-        id: "user-1",
-        name: "John Doe",
-        username: "johndoe",
-        profilePicture: null,
-      },
-    },
-    {
-      id: "2",
-      userId,
-      actorId: "user-2",
-      type: "comment",
-      postId: "post-2",
-      read: false,
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      actor: {
-        id: "user-2",
-        name: "Jane Smith",
-        username: "janesmith",
-        profilePicture: null,
-      },
-    },
-    {
-      id: "3",
-      userId,
-      actorId: "user-3",
-      type: "follow",
-      read: true,
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      actor: {
-        id: "user-3",
-        name: "Alex Johnson",
-        username: "alexj",
-        profilePicture: null,
-      },
-    },
-  ];
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select(`
+        id,
+        user_id,
+        actor_id,
+        type,
+        post_id,
+        read,
+        created_at,
+        profiles!notifications_actor_id_fkey (
+          id,
+          full_name,
+          username,
+          profile_picture
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map(item => ({
+      id: item.id,
+      userId: item.user_id,
+      actorId: item.actor_id,
+      type: item.type as NotificationType,
+      postId: item.post_id,
+      read: item.read,
+      createdAt: item.created_at,
+      actor: item.profiles ? {
+        id: item.profiles.id,
+        name: item.profiles.full_name,
+        username: item.profiles.username,
+        profilePicture: item.profiles.profile_picture
+      } : undefined
+    }));
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
 };
 
 export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
-  // In a real app, this would update the notification in Supabase
-  console.log(`Marking notification ${notificationId} as read`);
-  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', notificationId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error(`Error marking notification as read:`, error);
+    throw error;
+  }
 };
 
 export const markAllNotificationsAsRead = async (userId: string): Promise<void> => {
-  // In a real app, this would update all notifications in Supabase
-  console.log(`Marking all notifications for user ${userId} as read`);
-  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error(`Error marking all notifications as read:`, error);
+    throw error;
+  }
+};
+
+export const subscribeToNotifications = (userId: string, onUpdate: (notification: Notification) => void) => {
+  const channel = supabase
+    .channel(`notifications:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
+      },
+      async (payload) => {
+        // Fetch the complete notification with actor details
+        const { data, error } = await supabase
+          .from('notifications')
+          .select(`
+            id,
+            user_id,
+            actor_id,
+            type,
+            post_id,
+            read,
+            created_at,
+            profiles!notifications_actor_id_fkey (
+              id,
+              full_name,
+              username,
+              profile_picture
+            )
+          `)
+          .eq('id', payload.new.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching new notification details:', error);
+          return;
+        }
+
+        const notification: Notification = {
+          id: data.id,
+          userId: data.user_id,
+          actorId: data.actor_id,
+          type: data.type as NotificationType,
+          postId: data.post_id,
+          read: data.read,
+          createdAt: data.created_at,
+          actor: data.profiles ? {
+            id: data.profiles.id,
+            name: data.profiles.full_name,
+            username: data.profiles.username,
+            profilePicture: data.profiles.profile_picture
+          } : undefined
+        };
+
+        onUpdate(notification);
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+// Function to create a notification (for testing purposes)
+export const createNotification = async (
+  userId: string, 
+  actorId: string, 
+  type: NotificationType, 
+  postId?: string
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        actor_id: actorId,
+        type,
+        post_id: postId,
+        read: false
+      });
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    throw error;
+  }
 };

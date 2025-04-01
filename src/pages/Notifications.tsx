@@ -1,58 +1,24 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import CustomNavbar from "@/components/CustomNavbar";
 import { useAuth } from "@/contexts/auth";
-import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, Notification } from "@/services/notificationService";
+import { useNotifications } from "@/contexts/notification";
 import { toast } from "sonner";
+import type { Notification } from "@/services/notificationService";
 
 const Notifications: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!user) return;
-      
-      try {
-        const data = await getNotifications(user.id);
-        setNotifications(data);
-      } catch (error) {
-        console.error("Error fetching notifications:", error);
-        toast.error("Failed to load notifications");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotifications();
-  }, [user]);
-
-  const handleMarkAllAsRead = async () => {
-    if (!user) return;
-    
-    try {
-      await markAllNotificationsAsRead(user.id);
-      setNotifications(notifications.map(notification => ({ ...notification, read: true })));
-      toast.success("All notifications marked as read");
-    } catch (error) {
-      console.error("Error marking notifications as read:", error);
-      toast.error("Failed to mark notifications as read");
-    }
-  };
+  const { notifications, loading, markAsRead, markAllAsRead, unreadCount } = useNotifications();
 
   const handleNotificationClick = async (notification: Notification) => {
     try {
       if (!notification.read) {
-        await markNotificationAsRead(notification.id);
-        setNotifications(notifications.map(n => 
-          n.id === notification.id ? { ...n, read: true } : n
-        ));
+        await markAsRead(notification.id);
       }
       
       if (notification.type === "follow") {
@@ -62,6 +28,7 @@ const Notifications: React.FC = () => {
       }
     } catch (error) {
       console.error("Error handling notification:", error);
+      toast.error("Something went wrong");
     }
   };
 
@@ -85,6 +52,12 @@ const Notifications: React.FC = () => {
             <strong>{notification.actor?.name}</strong> started following you
           </span>
         );
+      case "mention":
+        return (
+          <span>
+            <strong>{notification.actor?.name}</strong> mentioned you in a post
+          </span>
+        );
       default:
         return (
           <span>
@@ -105,7 +78,15 @@ const Notifications: React.FC = () => {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead();
+      toast.success("All notifications marked as read");
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+      toast.error("Failed to mark all as read");
+    }
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -156,7 +137,7 @@ const Notifications: React.FC = () => {
                       alt={notification.actor?.username}
                     />
                     <AvatarFallback>
-                      {notification.actor?.username.substring(0, 2).toUpperCase()}
+                      {notification.actor?.username?.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">

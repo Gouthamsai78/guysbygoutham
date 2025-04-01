@@ -4,16 +4,16 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Home, MessageSquare, Bell, PenSquare, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
+import { useNotifications } from "@/contexts/notification";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import SearchBar from "./SearchBar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const CustomNavbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  const notificationCount = 3; // This would normally be fetched from an API
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -90,9 +90,9 @@ const CustomNavbar: React.FC = () => {
                     className={`p-2 rounded-full ${isActive('/notifications') ? 'bg-guys-gray text-guys-primary' : 'text-gray-500 hover:bg-gray-100'} transition-colors`}
                   >
                     <Bell className="h-6 w-6" />
-                    {notificationCount > 0 && (
+                    {unreadCount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                        {notificationCount}
+                        {unreadCount}
                       </span>
                     )}
                   </Link>
