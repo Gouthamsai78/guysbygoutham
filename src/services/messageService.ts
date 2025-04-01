@@ -48,6 +48,17 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
 
     // Get the latest message with each followed user (if any)
     const messagesPromises = followedUserIds.map(async (followedId) => {
+      // Use RPC to get the latest message
+      const { data: messageData } = await supabase.rpc('get_latest_message', {
+        p_user_id_1: userId,
+        p_user_id_2: followedId
+      });
+      
+      if (messageData && messageData.length > 0) {
+        return { followedId, latestMessage: messageData[0] };
+      }
+      
+      // Fallback to direct query with raw SQL if needed
       const { data } = await supabase
         .from('messages')
         .select('*')
@@ -104,8 +115,9 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
           createdAt: latestMessage.created_at,
           read: latestMessage.read,
           replyToId: latestMessage.reply_to_id,
-          fileUrl: latestMessage.file_url,
-          fileType: latestMessage.file_type
+          // Handle file fields explicitly
+          fileUrl: 'file_url' in latestMessage ? latestMessage.file_url : undefined,
+          fileType: 'file_type' in latestMessage ? latestMessage.file_type : undefined
         };
         
         // Check if there are unread messages
@@ -164,20 +176,46 @@ export const getMessages = async (
       throw new Error("You can only message users you follow");
     }
 
-    // Get messages between these two users
-    const { data: messages, error: messagesError } = await supabase
-      .from('messages')
-      .select('*')
-      .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${userId})`)
-      .order('created_at', { ascending: true });
+    // Use RPC to get messages between users
+    const { data: messagesData, error: messagesRpcError } = await supabase.rpc('get_messages_between_users', {
+      p_user_id_1: userId,
+      p_user_id_2: otherUserId
+    });
 
-    if (messagesError) {
-      console.error("Error fetching messages:", messagesError);
-      throw messagesError;
+    if (messagesRpcError) {
+      console.error("Error in RPC get_messages_between_users:", messagesRpcError);
+      
+      // Fallback to direct query if RPC fails
+      const { data: messages, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${userId})`)
+        .order('created_at', { ascending: true });
+
+      if (messagesError) {
+        console.error("Error fetching messages:", messagesError);
+        throw messagesError;
+      }
+
+      // Convert to our Message type
+      const formattedMessages: Message[] = (messages || []).map(msg => ({
+        id: msg.id,
+        senderId: msg.sender_id,
+        receiverId: msg.receiver_id,
+        content: msg.content,
+        createdAt: msg.created_at,
+        read: msg.read,
+        replyToId: msg.reply_to_id,
+        // Handle file fields explicitly
+        fileUrl: 'file_url' in msg ? msg.file_url : undefined,
+        fileType: 'file_type' in msg ? msg.file_type : undefined
+      }));
+      
+      return formattedMessages;
     }
 
-    // Convert to our Message type
-    const formattedMessages: Message[] = (messages || []).map(msg => ({
+    // Convert RPC result to Message type
+    const formattedMessages: Message[] = (messagesData || []).map(msg => ({
       id: msg.id,
       senderId: msg.sender_id,
       receiverId: msg.receiver_id,
@@ -264,37 +302,67 @@ export const sendMessage = async (
       fileType = file.type;
     }
     
-    // Insert the message into the messages table
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({
-        sender_id: senderId,
-        receiver_id: receiverId,
-        content: content,
-        read: false,
-        reply_to_id: replyToId,
-        file_url: fileUrl,
-        file_type: fileType
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error("Error inserting message:", error);
-      throw error;
+    // Use RPC to insert message
+    const { data: messageData, error: rpcError } = await supabase.rpc('send_message', {
+      p_sender_id: senderId,
+      p_receiver_id: receiverId,
+      p_content: content,
+      p_reply_to_id: replyToId,
+      p_file_url: fileUrl,
+      p_file_type: fileType
+    });
+
+    if (rpcError) {
+      console.error("Error in RPC send_message:", rpcError);
+      
+      // Fallback to direct insert if RPC fails
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: senderId,
+          receiver_id: receiverId,
+          content: content,
+          read: false,
+          reply_to_id: replyToId,
+          file_url: fileUrl,
+          file_type: fileType
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error("Error inserting message:", error);
+        throw error;
+      }
+      
+      // Convert to our Message type
+      const newMessage: Message = {
+        id: data.id,
+        senderId: data.sender_id,
+        receiverId: data.receiver_id,
+        content: data.content,
+        createdAt: data.created_at,
+        read: data.read,
+        replyToId: data.reply_to_id,
+        // Handle file fields explicitly
+        fileUrl: 'file_url' in data ? data.file_url : undefined,
+        fileType: 'file_type' in data ? data.file_type : undefined
+      };
+      
+      return newMessage;
     }
     
-    // Convert to our Message type
+    // Convert RPC result to Message type
     const newMessage: Message = {
-      id: data.id,
-      senderId: data.sender_id,
-      receiverId: data.receiver_id,
-      content: data.content,
-      createdAt: data.created_at,
-      read: data.read,
-      replyToId: data.reply_to_id,
-      fileUrl: data.file_url,
-      fileType: data.file_type
+      id: messageData.id,
+      senderId: messageData.sender_id,
+      receiverId: messageData.receiver_id,
+      content: messageData.content,
+      createdAt: messageData.created_at,
+      read: messageData.read,
+      replyToId: messageData.reply_to_id,
+      fileUrl: messageData.file_url,
+      fileType: messageData.file_type
     };
     
     return newMessage;
