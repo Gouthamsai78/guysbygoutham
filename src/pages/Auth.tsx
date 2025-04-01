@@ -150,7 +150,7 @@ const Auth = () => {
               </CardContent>
               <CardFooter className="flex flex-col space-y-2">
                 <div className="text-center text-sm text-gray-500">
-                  <span>Demo login: any email with password "password"</span>
+                  <span>welcome to the Guys app made for the teenagers</span>
                 </div>
               </CardFooter>
             </TabsContent>
