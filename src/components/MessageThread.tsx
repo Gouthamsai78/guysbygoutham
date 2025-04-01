@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -44,7 +43,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Timer for voice recording
   useEffect(() => {
     if (isRecording) {
       timerRef.current = window.setInterval(() => {
@@ -78,7 +76,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
 
   const handleReplyToMessage = useCallback((message: MessageType) => {
     setReplyToMessage(message);
-    // Make sure the inputRef.current exists before calling focus
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -116,11 +113,9 @@ const MessageThread: React.FC<MessageThreadProps> = ({
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
         
-        // Upload and send voice message
         onSendMessage(thread.id, "Voice message", replyToMessage?.id, audioFile);
         setReplyToMessage(null);
         
-        // Stop all tracks from the stream
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -147,7 +142,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Limit file size to 10MB
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "File too large",
@@ -159,7 +153,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     
     setSelectedFile(file);
     
-    // Create preview for images
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -218,7 +211,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             const isCurrentUser = message.senderId === user.id;
             const repliedMessage = findRepliedMessage(message.replyToId);
             
-            // Check if message contains an image or audio file
             const isImage = message.fileUrl?.match(/\.(jpeg|jpg|gif|png)$/i);
             const isAudio = message.fileUrl?.match(/\.(mp3|wav|ogg|webm)$/i);
             const isFile = message.fileUrl && !isImage && !isAudio;
@@ -231,7 +223,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
                   isCurrentUser ? "ml-auto items-end" : "mr-auto items-start"
                 )}
               >
-                {/* Reply preview if this message is replying to another */}
                 {repliedMessage && (
                   <div 
                     className={cn(
@@ -255,7 +246,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
                       : "bg-white text-gray-800 rounded-bl-none border border-gray-100"
                   )}
                 >
-                  {/* File attachments */}
                   {isImage && (
                     <div className="mb-2">
                       <img 
@@ -292,7 +282,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
                     </div>
                   )}
                   
-                  {/* Message content */}
                   <div onClick={() => handleReplyToMessage(message)}>
                     {message.content}
                     <div
@@ -327,7 +316,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
       </div>
 
       <form onSubmit={handleSendMessage} className="p-4 border-t bg-white">
-        {/* Reply preview */}
         {replyToMessage && (
           <div className="flex items-center bg-gradient-to-r from-pink-50 to-purple-50 p-2 rounded-lg mb-2 animate-fade-in">
             <div className="flex-1 text-sm truncate">
@@ -347,7 +335,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
           </div>
         )}
         
-        {/* File preview */}
         {filePreview && (
           <div className="bg-gray-50 p-2 rounded-lg mb-2 relative">
             <img 
@@ -385,7 +372,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
           </div>
         )}
         
-        {/* Voice recording indicator */}
         {isRecording && (
           <div className="bg-red-50 p-2 rounded-lg mb-2 flex items-center justify-between">
             <div className="flex items-center">
@@ -404,9 +390,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
           </div>
         )}
         
-        {/* Input area */}
         <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-full">
-          {/* Hidden file input */}
           <input 
             ref={fileInputRef}
             type="file"

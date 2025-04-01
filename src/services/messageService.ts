@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Message, MessageThread, User } from "@/types";
 import { toast } from "sonner";
+import { uploadFile } from "@/utils/fileUpload";
 
 export const getMessageThreads = async (userId: string): Promise<MessageThread[]> => {
   try {
@@ -48,23 +49,11 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
 
     // Get the latest message with each followed user (if any)
     const messagesPromises = followedUserIds.map(async (followedId) => {
-      // Use RPC to get the latest message
-      const { data: messageData } = await supabase
-        .rpc('get_latest_message', {
-          p_user_id_1: userId,
-          p_user_id_2: followedId
-        });
-      
-      if (messageData && messageData.length > 0) {
-        return { followedId, latestMessage: messageData[0] };
-      }
-      
-      // Fallback to direct query with raw SQL if needed
+      // Direct query for latest message between two users
       const { data } = await supabase
         .from('messages')
         .select('*')
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .or(`sender_id.eq.${followedId},receiver_id.eq.${followedId}`)
+        .or(`and(sender_id.eq.${userId},receiver_id.eq.${followedId}),and(sender_id.eq.${followedId},receiver_id.eq.${userId})`)
         .order('created_at', { ascending: false })
         .limit(1);
         
@@ -116,7 +105,6 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
           createdAt: latestMessage.created_at,
           read: latestMessage.read,
           replyToId: latestMessage.reply_to_id,
-          // Handle file fields explicitly with type safety
           fileUrl: latestMessage.file_url || undefined,
           fileType: latestMessage.file_type || undefined
         };
@@ -177,47 +165,20 @@ export const getMessages = async (
       throw new Error("You can only message users you follow");
     }
 
-    // Use RPC to get messages between users
-    const { data: messagesData, error: messagesRpcError } = await supabase
-      .rpc('get_messages_between_users', {
-        p_user_id_1: userId,
-        p_user_id_2: otherUserId
-      });
+    // Direct query to get messages between users
+    const { data: messages, error: messagesError } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${userId})`)
+      .order('created_at', { ascending: true });
 
-    if (messagesRpcError) {
-      console.error("Error in RPC get_messages_between_users:", messagesRpcError);
-      
-      // Fallback to direct query if RPC fails
-      const { data: messages, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${userId})`)
-        .order('created_at', { ascending: true });
-
-      if (messagesError) {
-        console.error("Error fetching messages:", messagesError);
-        throw messagesError;
-      }
-
-      // Convert to our Message type
-      const formattedMessages: Message[] = (messages || []).map(msg => ({
-        id: msg.id,
-        senderId: msg.sender_id,
-        receiverId: msg.receiver_id,
-        content: msg.content,
-        createdAt: msg.created_at,
-        read: msg.read,
-        replyToId: msg.reply_to_id,
-        // Handle file fields explicitly with type safety
-        fileUrl: msg.file_url || undefined,
-        fileType: msg.file_type || undefined
-      }));
-      
-      return formattedMessages;
+    if (messagesError) {
+      console.error("Error fetching messages:", messagesError);
+      throw messagesError;
     }
 
-    // Convert RPC result to Message type with proper type handling
-    const formattedMessages: Message[] = (messagesData || []).map((msg: any) => ({
+    // Convert to our Message type
+    const formattedMessages: Message[] = (messages || []).map(msg => ({
       id: msg.id,
       senderId: msg.sender_id,
       receiverId: msg.receiver_id,
@@ -234,39 +195,6 @@ export const getMessages = async (
     console.error("Error getting messages:", error);
     toast.error(error.message || "Failed to load messages");
     return [];
-  }
-};
-
-// Function to upload a file to Supabase storage
-const uploadFile = async (file: File, userId: string): Promise<string> => {
-  try {
-    // Create a unique file path
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `${userId}/${fileName}`;
-    
-    // Upload the file
-    const { error: uploadError } = await supabase.storage
-      .from('messages')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-      
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
-      throw uploadError;
-    }
-    
-    // Get the public URL
-    const { data: urlData } = supabase.storage
-      .from('messages')
-      .getPublicUrl(filePath);
-      
-    return urlData.publicUrl;
-  } catch (error) {
-    console.error("Error uploading file:", error);
-    throw error;
   }
 };
 
@@ -300,76 +228,44 @@ export const sendMessage = async (
     
     // If a file is provided, upload it first
     if (file) {
-      fileUrl = await uploadFile(file, senderId);
-      fileType = file.type;
-    }
-    
-    // Use RPC to insert message
-    const { data: messageData, error: rpcError } = await supabase
-      .rpc('send_message', {
-        p_sender_id: senderId,
-        p_receiver_id: receiverId,
-        p_content: content,
-        p_reply_to_id: replyToId,
-        p_file_url: fileUrl,
-        p_file_type: fileType
-      });
-
-    if (rpcError) {
-      console.error("Error in RPC send_message:", rpcError);
-      
-      // Fallback to direct insert if RPC fails
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: senderId,
-          receiver_id: receiverId,
-          content: content,
-          read: false,
-          reply_to_id: replyToId,
-          file_url: fileUrl,
-          file_type: fileType
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error("Error inserting message:", error);
-        throw error;
+      const uploadedUrl = await uploadFile(file, senderId, 'messages');
+      if (uploadedUrl) {
+        fileUrl = uploadedUrl;
+        fileType = file.type;
       }
-      
-      // Convert to our Message type
-      const newMessage: Message = {
-        id: data.id,
-        senderId: data.sender_id,
-        receiverId: data.receiver_id,
-        content: data.content,
-        createdAt: data.created_at,
-        read: data.read,
-        replyToId: data.reply_to_id,
-        fileUrl: data.file_url || undefined,
-        fileType: data.file_type || undefined
-      };
-      
-      return newMessage;
     }
     
-    // Convert RPC result to Message type with proper type safety
-    if (!messageData || messageData.length === 0) {
-      throw new Error("Failed to send message: No data returned");
+    // Direct insert message
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        sender_id: senderId,
+        receiver_id: receiverId,
+        content: content,
+        read: false,
+        reply_to_id: replyToId,
+        file_url: fileUrl,
+        file_type: fileType
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error("Error inserting message:", error);
+      throw error;
     }
     
-    const msg = messageData[0];
+    // Convert to our Message type
     const newMessage: Message = {
-      id: msg.id,
-      senderId: msg.sender_id,
-      receiverId: msg.receiver_id,
-      content: msg.content,
-      createdAt: msg.created_at,
-      read: msg.read,
-      replyToId: msg.reply_to_id,
-      fileUrl: msg.file_url || undefined,
-      fileType: msg.file_type || undefined
+      id: data.id,
+      senderId: data.sender_id,
+      receiverId: data.receiver_id,
+      content: data.content,
+      createdAt: data.created_at,
+      read: data.read,
+      replyToId: data.reply_to_id,
+      fileUrl: data.file_url || undefined,
+      fileType: data.file_type || undefined
     };
     
     return newMessage;

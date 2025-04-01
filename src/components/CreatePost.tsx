@@ -50,10 +50,12 @@ const CreatePost: React.FC<CreatePostProps> = ({ onPostCreated }) => {
       const filePath = `${user.id}/${fileName}`;
       
       // Check if bucket exists, create if not
-      const { error: bucketError } = await supabase.storage
-        .getBucket('post-media');
+      const { data: buckets } = await supabase.storage
+        .listBuckets();
       
-      if (bucketError) {
+      const bucketExists = buckets?.find(bucket => bucket.name === 'post-media');
+      
+      if (!bucketExists) {
         // Bucket doesn't exist, create it
         const { error: createError } = await supabase.storage
           .createBucket('post-media', { public: true });
