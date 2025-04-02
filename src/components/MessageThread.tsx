@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MessageThreadProps {
   thread: MessageThreadType;
@@ -33,6 +33,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [expirationTime, setExpirationTime] = useState<number | null>(null);
+  const isMobile = useIsMobile();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -179,7 +180,12 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   };
 
   const triggerFileInput = () => {
-    fileInputRef.current?.click();
+    if (fileInputRef.current) {
+      if (isMobile) {
+        fileInputRef.current.removeAttribute('capture');
+      }
+      fileInputRef.current.click();
+    }
   };
   
   const handleExpirationChange = (value: number[]) => {
@@ -261,6 +267,13 @@ const MessageThread: React.FC<MessageThreadProps> = ({
       </div>
 
       <div className="flex-grow overflow-y-auto p-4 space-y-4">
+        <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-center">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Advertisement</p>
+          <div className="bg-gradient-to-r from-pink-100 to-purple-100 h-16 flex items-center justify-center rounded">
+            <span className="text-pink-600 font-medium">Your Ad Here</span>
+          </div>
+        </div>
+        
         {messages.length > 0 ? (
           messages.map((message) => {
             const isCurrentUser = message.senderId === user.id;
@@ -270,7 +283,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             const isAudio = message.fileUrl?.match(/\.(mp3|wav|ogg|webm)$/i);
             const isFile = message.fileUrl && !isImage && !isAudio;
             
-            // Check if message has expired
             const isExpired = message.expiresAt && new Date(message.expiresAt) <= new Date();
             const expirationText = getMessageExpirationText(message);
             
@@ -395,6 +407,14 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             </div>
           </div>
         )}
+        
+        <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-center">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Sponsored</p>
+          <div className="bg-gradient-to-r from-blue-100 to-green-100 h-12 flex items-center justify-center rounded">
+            <span className="text-blue-600 font-medium">Download Our App</span>
+          </div>
+        </div>
+        
         <div ref={messagesEndRef} />
       </div>
 
@@ -435,7 +455,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
               <X className="h-4 w-4" />
             </Button>
             
-            {/* Improved disappearing message UI */}
             <div className="mt-2 bg-white p-3 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium flex items-center">
@@ -510,7 +529,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             className="hidden"
             onChange={handleFileSelect}
             accept="image/*,audio/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            capture="environment"
           />
           
           <Button 
