@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   username: string;
@@ -47,6 +46,7 @@ export interface Message {
   replyToId?: string;
   fileUrl?: string;
   fileType?: string;
+  expiresAt?: string;
 }
 
 export interface MessageThread {

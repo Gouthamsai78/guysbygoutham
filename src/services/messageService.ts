@@ -167,11 +167,12 @@ export const getMessages = async (
       throw new Error("You can only message users you follow");
     }
 
-    // Direct query to get messages between users
+    // Direct query to get messages between users, filtering out expired messages
     const { data: messages, error: messagesError } = await supabase
       .from('messages')
       .select('*')
       .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${userId})`)
+      .lt('expires_at', new Date().toISOString(), { ascending: true }) // This handles null values correctly
       .order('created_at', { ascending: true });
 
     if (messagesError) {
@@ -201,7 +202,8 @@ export const getMessages = async (
       delivered: msg.delivered || false,
       replyToId: msg.reply_to_id,
       fileUrl: msg.file_url || undefined,
-      fileType: msg.file_type || undefined
+      fileType: msg.file_type || undefined,
+      expiresAt: msg.expires_at || undefined
     }));
     
     return formattedMessages;
@@ -217,7 +219,8 @@ export const sendMessage = async (
   receiverId: string,
   content: string,
   replyToId?: string,
-  file?: File
+  file?: File,
+  expiresIn?: number
 ): Promise<Message> => {
   try {
     // Check if the sender follows the receiver
@@ -249,6 +252,14 @@ export const sendMessage = async (
       }
     }
     
+    // Calculate expiration time if provided
+    let expiresAt = null;
+    if (expiresIn) {
+      const date = new Date();
+      date.setSeconds(date.getSeconds() + expiresIn);
+      expiresAt = date.toISOString();
+    }
+    
     // Direct insert message
     const { data, error } = await supabase
       .from('messages')
@@ -260,7 +271,8 @@ export const sendMessage = async (
         delivered: false,
         reply_to_id: replyToId,
         file_url: fileUrl,
-        file_type: fileType
+        file_type: fileType,
+        expires_at: expiresAt
       })
       .select()
       .single();
@@ -281,7 +293,8 @@ export const sendMessage = async (
       delivered: data.delivered || false,
       replyToId: data.reply_to_id,
       fileUrl: data.file_url || undefined,
-      fileType: data.file_type || undefined
+      fileType: data.file_type || undefined,
+      expiresAt: data.expires_at || undefined
     };
     
     return newMessage;
@@ -350,7 +363,8 @@ export const subscribeToMessages = (
         delivered: payload.new.delivered || false,
         replyToId: payload.new.reply_to_id,
         fileUrl: payload.new.file_url || undefined,
-        fileType: payload.new.file_type || undefined
+        fileType: payload.new.file_type || undefined,
+        expiresAt: payload.new.expires_at || undefined
       };
       
       callback(newMessage);

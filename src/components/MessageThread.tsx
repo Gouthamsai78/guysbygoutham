@@ -1,19 +1,22 @@
+
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
 import { Message as MessageType, MessageThread as MessageThreadType } from "@/types";
-import { Send, X, Heart, Image, Mic, Paperclip, Smile, StopCircle, Check, CheckCheck, Clock } from "lucide-react";
+import { Send, X, Heart, Image, Mic, Paperclip, Smile, StopCircle, Check, CheckCheck, Clock, Timer } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
 
 interface MessageThreadProps {
   thread: MessageThreadType;
   messages: MessageType[];
-  onSendMessage: (threadId: string, content: string, replyToId?: string, file?: File) => void;
+  onSendMessage: (threadId: string, content: string, replyToId?: string, file?: File, expiresIn?: number) => void;
 }
 
 const MessageThread: React.FC<MessageThreadProps> = ({
@@ -29,6 +32,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   const [recordingTime, setRecordingTime] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [expirationTime, setExpirationTime] = useState<number | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,12 +71,13 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     e.preventDefault();
     if ((!messageInput.trim() && !selectedFile) || !user) return;
     
-    onSendMessage(thread.id, messageInput, replyToMessage?.id, selectedFile || undefined);
+    onSendMessage(thread.id, messageInput, replyToMessage?.id, selectedFile || undefined, expirationTime || undefined);
     setMessageInput("");
     setReplyToMessage(null);
     setSelectedFile(null);
     setFilePreview(null);
-  }, [messageInput, user, thread.id, replyToMessage, onSendMessage, selectedFile]);
+    setExpirationTime(null);
+  }, [messageInput, user, thread.id, replyToMessage, onSendMessage, selectedFile, expirationTime]);
 
   const handleReplyToMessage = useCallback((message: MessageType) => {
     setReplyToMessage(message);
@@ -113,8 +118,9 @@ const MessageThread: React.FC<MessageThreadProps> = ({
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
         
-        onSendMessage(thread.id, "Voice message", replyToMessage?.id, audioFile);
+        onSendMessage(thread.id, "Voice message", replyToMessage?.id, audioFile, expirationTime || undefined);
         setReplyToMessage(null);
+        setExpirationTime(null);
         
         stream.getTracks().forEach(track => track.stop());
       };
@@ -175,6 +181,10 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
+  
+  const handleExpirationChange = (value: number[]) => {
+    setExpirationTime(value[0]);
+  };
 
   const renderMessageStatus = (message: MessageType) => {
     if (message.senderId !== user?.id) return null;
@@ -183,19 +193,42 @@ const MessageThread: React.FC<MessageThreadProps> = ({
       <div className="text-xs text-right mt-1 opacity-70 flex justify-end items-center">
         {message.read ? (
           <div title="Seen" className="flex items-center text-blue-500">
-            <CheckCheck className="h-3 w-3 ml-1" />
+            <CheckCheck className="h-3.5 w-3.5 ml-1 text-blue-500" />
           </div>
         ) : message.delivered ? (
-          <div title="Delivered" className="flex items-center text-gray-500">
-            <Check className="h-3 w-3 ml-1" />
+          <div title="Delivered" className="flex items-center">
+            <Check className="h-3.5 w-3.5 ml-1 text-green-500" />
           </div>
         ) : (
-          <div title="Sent" className="flex items-center text-gray-400">
-            <Clock className="h-3 w-3 ml-1" />
+          <div title="Sent" className="flex items-center">
+            <Clock className="h-3.5 w-3.5 ml-1 text-gray-400" />
           </div>
         )}
       </div>
     );
+  };
+  
+  const getMessageExpirationText = (message: MessageType) => {
+    if (!message.expiresAt) return null;
+    
+    const expiryDate = new Date(message.expiresAt);
+    const now = new Date();
+    
+    if (expiryDate <= now) {
+      return "Expired";
+    }
+    
+    const timeLeft = Math.floor((expiryDate.getTime() - now.getTime()) / 1000); // seconds
+    
+    if (timeLeft < 60) {
+      return `${timeLeft}s`;
+    } else if (timeLeft < 3600) {
+      return `${Math.floor(timeLeft / 60)}m`;
+    } else if (timeLeft < 86400) {
+      return `${Math.floor(timeLeft / 3600)}h`;
+    } else {
+      return `${Math.floor(timeLeft / 86400)}d`;
+    }
   };
 
   if (!user || !otherUser) {
@@ -237,6 +270,10 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             const isAudio = message.fileUrl?.match(/\.(mp3|wav|ogg|webm)$/i);
             const isFile = message.fileUrl && !isImage && !isAudio;
             
+            // Check if message has expired
+            const isExpired = message.expiresAt && new Date(message.expiresAt) <= new Date();
+            const expirationText = getMessageExpirationText(message);
+            
             return (
               <div
                 key={message.id}
@@ -268,54 +305,79 @@ const MessageThread: React.FC<MessageThreadProps> = ({
                       : "bg-white text-gray-800 rounded-bl-none border border-gray-100"
                   )}
                 >
-                  {isImage && (
-                    <div className="mb-2">
-                      <img 
-                        src={message.fileUrl} 
-                        alt="Shared image" 
-                        className="rounded-lg max-h-[200px] w-auto object-contain" 
-                      />
-                    </div>
+                  {isExpired ? (
+                    <div className="italic text-sm opacity-70">This message has expired</div>
+                  ) : (
+                    <>
+                      {isImage && (
+                        <div className="mb-2 relative">
+                          <img 
+                            src={message.fileUrl} 
+                            alt="Shared image" 
+                            className="rounded-lg max-h-[200px] w-auto object-contain" 
+                          />
+                          {message.expiresAt && (
+                            <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                              <Timer className="h-3 w-3 mr-1" />
+                              {expirationText}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {isAudio && (
+                        <div className="mb-2">
+                          <audio controls className="w-full max-w-[240px]">
+                            <source src={message.fileUrl} type="audio/webm" />
+                            Your browser does not support audio playback.
+                          </audio>
+                        </div>
+                      )}
+                      
+                      {isFile && (
+                        <div className="mb-2 flex items-center">
+                          <Paperclip className={cn("h-4 w-4 mr-1", isCurrentUser ? "text-pink-100" : "text-gray-500")} />
+                          <a 
+                            href={message.fileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className={cn(
+                              "underline text-sm",
+                              isCurrentUser ? "text-pink-100" : "text-purple-500"
+                            )}
+                          >
+                            Attachment
+                          </a>
+                        </div>
+                      )}
+                      
+                      {message.content && (
+                        <div onClick={() => handleReplyToMessage(message)}>
+                          {message.content}
+                          
+                          <div className="flex justify-between items-center mt-1">
+                            <div className={cn(
+                              "text-xs",
+                              isCurrentUser ? "text-pink-100" : "text-gray-500"
+                            )}>
+                              {formatDistanceToNow(new Date(message.createdAt), {
+                                addSuffix: true,
+                              })}
+                              
+                              {message.expiresAt && (
+                                <span className="ml-2 flex items-center inline-block">
+                                  <Timer className="h-3 w-3 inline mr-0.5" />
+                                  {expirationText}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {isCurrentUser && renderMessageStatus(message)}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
-                  
-                  {isAudio && (
-                    <div className="mb-2">
-                      <audio controls className="w-full max-w-[240px]">
-                        <source src={message.fileUrl} type="audio/webm" />
-                        Your browser does not support audio playback.
-                      </audio>
-                    </div>
-                  )}
-                  
-                  {isFile && (
-                    <div className="mb-2 flex items-center">
-                      <Paperclip className={cn("h-4 w-4 mr-1", isCurrentUser ? "text-pink-100" : "text-gray-500")} />
-                      <a 
-                        href={message.fileUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className={cn(
-                          "underline text-sm",
-                          isCurrentUser ? "text-pink-100" : "text-purple-500"
-                        )}
-                      >
-                        Attachment
-                      </a>
-                    </div>
-                  )}
-                  
-                  <div onClick={() => handleReplyToMessage(message)}>
-                    {message.content}
-                    <div className={cn(
-                      "text-xs mt-1",
-                      isCurrentUser ? "text-pink-100" : "text-gray-500"
-                    )}>
-                      {formatDistanceToNow(new Date(message.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </div>
-                    {isCurrentUser && renderMessageStatus(message)}
-                  </div>
                 </div>
               </div>
             );
@@ -372,6 +434,43 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             >
               <X className="h-4 w-4" />
             </Button>
+            
+            {/* Expiration time selector for images */}
+            <div className="mt-2 bg-white p-2 rounded-lg">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs w-full flex items-center justify-center"
+                  >
+                    <Timer className="h-3.5 w-3.5 mr-1" />
+                    {expirationTime ? `Expires in ${expirationTime} seconds` : "Set expiration time"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64">
+                  <div className="p-2">
+                    <h4 className="font-medium text-sm mb-3">Set message expiration time</h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs">5s</span>
+                      <Slider 
+                        defaultValue={[0]} 
+                        max={60} 
+                        step={5}
+                        min={5}
+                        onValueChange={handleExpirationChange}
+                        className="flex-1"
+                      />
+                      <span className="text-xs">60s</span>
+                    </div>
+                    <p className="text-center text-sm font-medium">
+                      {expirationTime ? `${expirationTime} seconds` : "Off"}
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         )}
         
@@ -418,6 +517,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             className="hidden"
             onChange={handleFileSelect}
             accept="image/*,audio/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            capture="environment"
           />
           
           <Button 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Search } from "lucide-react";
 import CustomNavbar from "@/components/CustomNavbar";
@@ -25,7 +24,6 @@ const Messages = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   
-  // Fetch message threads when user loads the page
   useEffect(() => {
     const fetchMessageThreads = async () => {
       if (!user) return;
@@ -48,7 +46,6 @@ const Messages = () => {
     fetchMessageThreads();
   }, [user]);
   
-  // Fetch messages when active thread changes
   useEffect(() => {
     const fetchMessages = async () => {
       if (!user || !activeThreadId) return;
@@ -83,35 +80,26 @@ const Messages = () => {
     fetchMessages();
   }, [user, activeThreadId, messageThreads]);
   
-  // Subscribe to real-time message updates
   useEffect(() => {
     if (!user) return;
     
-    // Set up subscription
     const unsubscribe = subscribeToMessages(user.id, (newMessage) => {
-      // Check if message belongs to active thread
       if (activeThreadId) {
         const activeThread = messageThreads.find(thread => thread.id === activeThreadId);
         if (activeThread) {
           const otherUser = activeThread.participants.find(p => p.id !== user.id);
           if (otherUser && newMessage.senderId === otherUser.id) {
-            // Add message to the current conversation
             setMessages(prev => [...prev, newMessage]);
-            
-            // Mark as read if viewing the thread
             markThreadAsRead(user.id, activeThreadId);
             return;
           }
         }
       }
       
-      // Update thread list with the new message
       setMessageThreads(threads => {
         return threads.map(thread => {
-          // Find the thread this message belongs to
           const otherUser = thread.participants.find(p => p.id !== user.id);
           if (otherUser && otherUser.id === newMessage.senderId) {
-            // Update the thread with the new message and increment unread count
             return {
               ...thread,
               lastMessage: newMessage,
@@ -122,7 +110,6 @@ const Messages = () => {
         });
       });
       
-      // Show notification for new message
       const sender = messageThreads.find(thread => 
         thread.participants.some(p => p.id === newMessage.senderId)
       )?.participants.find(p => p.id === newMessage.senderId);
@@ -134,14 +121,18 @@ const Messages = () => {
       }
     });
     
-    // Clean up subscription on unmount
     return () => {
       unsubscribe();
     };
   }, [user, messageThreads, activeThreadId]);
   
-  // Handle sending messages
-  const handleSendMessage = useCallback(async (threadId: string, content: string, replyToId?: string, file?: File) => {
+  const handleSendMessage = useCallback(async (
+    threadId: string, 
+    content: string, 
+    replyToId?: string, 
+    file?: File,
+    expiresIn?: number
+  ) => {
     if (!user) return;
     
     const activeThread = messageThreads.find(thread => thread.id === threadId);
@@ -151,12 +142,10 @@ const Messages = () => {
     if (!otherUser) return;
     
     try {
-      const newMessage = await sendMessage(user.id, otherUser.id, content, replyToId, file);
+      const newMessage = await sendMessage(user.id, otherUser.id, content, replyToId, file, expiresIn);
       
-      // Add the new message to the current conversation
       setMessages(prevMessages => [...prevMessages, newMessage]);
       
-      // Update thread with last message
       setMessageThreads(threads => 
         threads.map(thread => 
           thread.id === threadId 
@@ -173,7 +162,6 @@ const Messages = () => {
     }
   }, [user, messageThreads]);
   
-  // Filter threads based on search query
   const filteredThreads = messageThreads.filter((thread) =>
     thread.participants.some(
       (participant) =>
