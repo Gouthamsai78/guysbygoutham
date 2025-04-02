@@ -128,6 +128,7 @@ export type Database = {
           content: string
           created_at: string
           delivered: boolean | null
+          expires_at: string | null
           file_type: string | null
           file_url: string | null
           id: string
@@ -140,6 +141,7 @@ export type Database = {
           content: string
           created_at?: string
           delivered?: boolean | null
+          expires_at?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
@@ -152,6 +154,7 @@ export type Database = {
           content?: string
           created_at?: string
           delivered?: boolean | null
+          expires_at?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string

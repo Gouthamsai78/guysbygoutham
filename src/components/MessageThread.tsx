@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
 import { Message as MessageType, MessageThread as MessageThreadType } from "@/types";
-import { Send, X, Heart, Image, Mic, Paperclip, Smile, StopCircle, Check, CheckCheck, Clock, Timer } from "lucide-react";
+import { Send, X, Heart, Image, Mic, Paperclip, Smile, StopCircle, Check, CheckCheck, Clock, Timer, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
+import { toast } from "sonner";
 
 interface MessageThreadProps {
   thread: MessageThreadType;
@@ -190,18 +190,18 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     if (message.senderId !== user?.id) return null;
     
     return (
-      <div className="text-xs text-right mt-1 opacity-70 flex justify-end items-center">
+      <div className="text-xs text-right mt-1 opacity-90 flex justify-end items-center">
         {message.read ? (
-          <div title="Seen" className="flex items-center text-blue-500">
-            <CheckCheck className="h-3.5 w-3.5 ml-1 text-blue-500" />
+          <div title="Seen" className="flex items-center">
+            <CheckCheck className="h-4 w-4 ml-1 text-blue-500 font-bold" />
           </div>
         ) : message.delivered ? (
           <div title="Delivered" className="flex items-center">
-            <Check className="h-3.5 w-3.5 ml-1 text-green-500" />
+            <Check className="h-4 w-4 ml-1 text-green-600 font-bold" />
           </div>
         ) : (
           <div title="Sent" className="flex items-center">
-            <Clock className="h-3.5 w-3.5 ml-1 text-gray-400" />
+            <Clock className="h-4 w-4 ml-1 text-white drop-shadow-md" />
           </div>
         )}
       </div>
@@ -435,41 +435,34 @@ const MessageThread: React.FC<MessageThreadProps> = ({
               <X className="h-4 w-4" />
             </Button>
             
-            {/* Expiration time selector for images */}
-            <div className="mt-2 bg-white p-2 rounded-lg">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-xs w-full flex items-center justify-center"
-                  >
-                    <Timer className="h-3.5 w-3.5 mr-1" />
-                    {expirationTime ? `Expires in ${expirationTime} seconds` : "Set expiration time"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64">
-                  <div className="p-2">
-                    <h4 className="font-medium text-sm mb-3">Set message expiration time</h4>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs">5s</span>
-                      <Slider 
-                        defaultValue={[0]} 
-                        max={60} 
-                        step={5}
-                        min={5}
-                        onValueChange={handleExpirationChange}
-                        className="flex-1"
-                      />
-                      <span className="text-xs">60s</span>
-                    </div>
-                    <p className="text-center text-sm font-medium">
-                      {expirationTime ? `${expirationTime} seconds` : "Off"}
-                    </p>
-                  </div>
-                </PopoverContent>
-              </Popover>
+            {/* Improved disappearing message UI */}
+            <div className="mt-2 bg-white p-3 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium flex items-center">
+                  <Timer className="h-4 w-4 mr-1.5 text-pink-500" />
+                  Disappearing message 
+                </span>
+                {expirationTime ? (
+                  <span className="text-xs font-semibold bg-pink-100 text-pink-800 px-2 py-1 rounded-full">
+                    {expirationTime}s
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500">Off</span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-xs">5s</span>
+                <Slider 
+                  defaultValue={[0]} 
+                  max={60} 
+                  step={5}
+                  min={5}
+                  onValueChange={handleExpirationChange}
+                  className="flex-1"
+                />
+                <span className="text-xs">60s</span>
+              </div>
             </div>
           </div>
         )}

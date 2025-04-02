@@ -167,12 +167,12 @@ export const getMessages = async (
       throw new Error("You can only message users you follow");
     }
 
-    // Direct query to get messages between users, filtering out expired messages
+    // Modified query to filter out expired messages
     const { data: messages, error: messagesError } = await supabase
       .from('messages')
       .select('*')
       .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${userId})`)
-      .lt('expires_at', new Date().toISOString(), { ascending: true }) // This handles null values correctly
+      .or('expires_at.is.null,expires_at.gt.now()') // Show only non-expired messages
       .order('created_at', { ascending: true });
 
     if (messagesError) {
