@@ -7,18 +7,23 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/auth";
 import { NotificationProvider } from "./contexts/notification";
 import { SettingsProvider } from "./contexts/settings";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Home from "./pages/Home";
-import Profile from "./pages/Profile";
-import EditProfile from "./pages/EditProfile";
-import Messages from "./pages/Messages";
-import CreatePost from "./pages/CreatePost";
-import NotFound from "./pages/NotFound";
-import EnhancedPostDetail from "./pages/EnhancedPostDetail";
-import Notifications from "./pages/Notifications";
-import Admin from "./pages/Admin";
-import { useState } from "react";
+import { lazy, useState } from "react";
+import LazyLoad from "./components/LazyLoad";
+import MobileNavBar from "./components/MobileNavBar";
+import { useIsMobile } from "./hooks/use-mobile";
+
+// Lazy load components to reduce initial bundle size
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Home = lazy(() => import("./pages/Home"));
+const Profile = lazy(() => import("./pages/Profile"));
+const EditProfile = lazy(() => import("./pages/EditProfile"));
+const Messages = lazy(() => import("./pages/Messages"));
+const CreatePost = lazy(() => import("./pages/CreatePost"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const EnhancedPostDetail = lazy(() => import("./pages/EnhancedPostDetail"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const Admin = lazy(() => import("./pages/Admin"));
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
@@ -72,24 +77,43 @@ const AuthRoute = ({ children }: { children: JSX.Element }) => {
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
-      <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-      <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-      <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-      <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
-      <Route path="/post/:id" element={<ProtectedRoute><EnhancedPostDetail /></ProtectedRoute>} />
-      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-      <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-      <Route path="*" element={<NotFound />} />
+      <Route path="/" element={<LazyLoad><Index /></LazyLoad>} />
+      <Route path="/auth" element={<AuthRoute><LazyLoad><Auth /></LazyLoad></AuthRoute>} />
+      <Route path="/home" element={<ProtectedRoute><LazyLoad><Home /></LazyLoad></ProtectedRoute>} />
+      <Route path="/profile/:id" element={<ProtectedRoute><LazyLoad><Profile /></LazyLoad></ProtectedRoute>} />
+      <Route path="/edit-profile" element={<ProtectedRoute><LazyLoad><EditProfile /></LazyLoad></ProtectedRoute>} />
+      <Route path="/messages" element={<ProtectedRoute><LazyLoad><Messages /></LazyLoad></ProtectedRoute>} />
+      <Route path="/create-post" element={<ProtectedRoute><LazyLoad><CreatePost /></LazyLoad></ProtectedRoute>} />
+      <Route path="/post/:id" element={<ProtectedRoute><LazyLoad><EnhancedPostDetail /></LazyLoad></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><LazyLoad><Notifications /></LazyLoad></ProtectedRoute>} />
+      <Route path="/admin" element={<AdminRoute><LazyLoad><Admin /></LazyLoad></AdminRoute>} />
+      <Route path="*" element={<LazyLoad><NotFound /></LazyLoad>} />
     </Routes>
+  );
+};
+
+const AppContent = () => {
+  const { isAuthenticated } = useAuth();
+  
+  return (
+    <>
+      <AppRoutes />
+      {isAuthenticated && <MobileNavBar />}
+    </>
   );
 };
 
 const App = () => {
   // Create a new QueryClient instance inside the component
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60, // 1 minute
+        cacheTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false,
+      },
+    }
+  }));
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -100,7 +124,7 @@ const App = () => {
               <Toaster />
               <Sonner />
               <BrowserRouter>
-                <AppRoutes />
+                <AppContent />
               </BrowserRouter>
             </SettingsProvider>
           </NotificationProvider>

@@ -1,85 +1,136 @@
 
-import React from 'react';
-import { useSettings } from '@/contexts/settings';
-import { useAuth } from '@/contexts/auth';
-import { Navigate } from 'react-router-dom';
-import CustomNavbar from '@/components/CustomNavbar';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
-import AdBanner from '@/components/AdBanner';
+import React, { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { useSettings } from "@/contexts/settings";
+import { toast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/auth";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Admin: React.FC = () => {
+  const { showAds, toggleShowAds, reduceAnimations, toggleReduceAnimations, savePreferences } = useSettings();
   const { user } = useAuth();
-  const { settings, updateSettings } = useSettings();
+  const [saving, setSaving] = useState(false);
 
-  // Redirect non-admin users
-  if (!user?.isAdmin) {
-    return <Navigate to="/home" replace />;
-  }
-
-  const handleToggleAds = (checked: boolean) => {
-    updateSettings({ showAds: checked });
-    toast.success(`Ads have been ${checked ? 'enabled' : 'disabled'}`);
+  const handleSaveSettings = async () => {
+    setSaving(true);
+    try {
+      await savePreferences();
+      toast({
+        title: "Settings saved",
+        description: "Your changes have been applied successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error saving settings",
+        description: "There was a problem saving your settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CustomNavbar />
-      <div className="max-w-4xl mx-auto p-4 md:p-8 pb-24">
-        <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-        
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Advertisement Settings</CardTitle>
-            <CardDescription>Control the visibility of ads throughout the application</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="show-ads">Show advertisements</Label>
-              <Switch
-                id="show-ads"
-                checked={settings.showAds}
-                onCheckedChange={handleToggleAds}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="text-sm text-gray-500">
-            {settings.showAds 
-              ? "Ads are currently enabled and visible to all users." 
-              : "Ads are currently disabled and hidden from all users."}
-          </CardFooter>
-        </Card>
-
-        <Separator className="my-6" />
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Ad Preview</CardTitle>
-            <CardDescription>Preview how ads will appear to your users</CardDescription>
-          </CardHeader>
-          <CardContent className="h-32 relative">
-            {settings.showAds ? (
-              <div className="relative h-full">
-                <AdBanner 
-                  position="bottom"
-                  variant="secondary"
-                  className="relative bottom-0 left-0 right-0"
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg">
-                <p className="text-gray-500">Ads are currently disabled</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+    <div className="container py-6 md:py-10 space-y-6 max-w-4xl pb-20 md:pb-6">
+      <div className="flex items-center gap-4">
+        <Link to="/home" className="text-gray-500 hover:text-guys-primary transition-colors">
+          <ArrowLeft className="h-6 w-6" />
+        </Link>
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
       </div>
       
-      {/* Example ad at the bottom */}
-      {settings.showAds && <AdBanner />}
+      <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 p-3 rounded-md">
+        <div className="bg-yellow-100 text-yellow-600 font-bold rounded-full w-6 h-6 flex items-center justify-center">
+          !
+        </div>
+        <p className="text-yellow-800 text-sm">
+          You're logged in as <span className="font-bold">{user?.username}</span> with admin privileges.
+        </p>
+      </div>
+
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid grid-cols-3 mb-6">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="advertisements">Advertisements</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="general">
+          <Card>
+            <CardHeader>
+              <CardTitle>General Settings</CardTitle>
+              <CardDescription>
+                Manage general system settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-500">
+                More settings coming soon...
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="advertisements">
+          <Card>
+            <CardHeader>
+              <CardTitle>Advertisement Settings</CardTitle>
+              <CardDescription>
+                Control advertisement visibility across the platform
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium">Show Advertisements</h3>
+                  <p className="text-sm text-gray-500">
+                    Toggle the visibility of ads across the platform
+                  </p>
+                </div>
+                <Switch 
+                  checked={showAds} 
+                  onCheckedChange={toggleShowAds} 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="performance">
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance Optimization</CardTitle>
+              <CardDescription>
+                Settings to optimize app performance
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium">Reduce Animations</h3>
+                  <p className="text-sm text-gray-500">
+                    Minimize animations to improve performance on lower-end devices
+                  </p>
+                </div>
+                <Switch 
+                  checked={reduceAnimations} 
+                  onCheckedChange={toggleReduceAnimations} 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+      
+      <div className="flex justify-end">
+        <Button onClick={handleSaveSettings} disabled={saving}>
+          {saving ? "Saving..." : "Save Changes"}
+        </Button>
+      </div>
     </div>
   );
 };

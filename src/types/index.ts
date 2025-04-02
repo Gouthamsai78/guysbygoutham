@@ -60,4 +60,5 @@ export interface MessageThread {
 
 export interface AppSettings {
   showAds: boolean;
+  reduceAnimations?: boolean;
 }

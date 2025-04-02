@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 
@@ -130,6 +131,21 @@
   .post-interaction {
     @apply flex items-center gap-2 text-gray-500 hover:text-guys-primary transition-colors;
   }
+  
+  /* Mobile navigation styles - Instagram-like */
+  .mobile-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center py-2 z-50;
+  }
+  
+  .mobile-nav-link {
+    @apply flex flex-col items-center p-2;
+  }
+  
+  /* Reduce animations for better performance */
+  .reduce-animations * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
 }
 
 @keyframes highlight-pulse {
@@ -140,4 +156,24 @@
 
 .bg-highlight-pulse {
   animation: highlight-pulse 2s ease-in-out;
+}
+
+/* Add bottom spacing for mobile pages to accommodate the bottom navigation */
+@media (max-width: 768px) {
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 4rem);
+  }
+}
+
+/* Optimize for mobile scrolling */
+@media (max-width: 768px) {
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+/* Fix for fixed position elements on mobile */
+.fixed-safe-bottom {
+  bottom: calc(env(safe-area-inset-bottom) + 0px);
 }

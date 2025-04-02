@@ -6,11 +6,16 @@ import PostList from "@/components/PostList";
 import CreatePost from "@/components/CreatePost";
 import { Post } from "@/types";
 import CustomNavbar from "@/components/CustomNavbar";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useSettings } from "@/contexts/settings";
+import AdBanner from "@/components/AdBanner";
 
 const Home: React.FC = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile();
+  const { showAds } = useSettings();
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -112,10 +117,10 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <CustomNavbar />
-      <div className="max-w-2xl mx-auto p-4 md:py-6">
-        {user && <CreatePost onPostCreated={handlePostCreated} />}
+    <div className="bg-gray-50 min-h-screen pb-16">
+      {!isMobile && <CustomNavbar />}
+      <div className="max-w-2xl mx-auto px-2 md:p-4 md:py-6">
+        {user && !isMobile && <CreatePost onPostCreated={handlePostCreated} />}
         {loading ? (
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-guys-primary"></div>
@@ -124,6 +129,7 @@ const Home: React.FC = () => {
           <PostList posts={posts} />
         )}
       </div>
+      {showAds && <AdBanner position="bottom" />}
     </div>
   );
 };
