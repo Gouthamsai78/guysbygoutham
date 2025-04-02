@@ -1,24 +1,37 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
+import { useSettings } from "@/contexts/settings";
+import AdBanner from "@/components/AdBanner";
 
 const Index = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { settings } = useSettings();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-guys-primary/5 to-white">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-guys-primary/5 to-white pb-20">
       <header className="py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-guys-primary">Guys</h1>
         </div>
-        <div>
+        <div className="flex items-center space-x-4">
           {isAuthenticated ? (
-            <Link to="/home">
-              <Button className="bg-guys-primary text-white hover:bg-guys-secondary">
-                Go to Feed
-              </Button>
-            </Link>
+            <>
+              <Link to="/home">
+                <Button className="bg-guys-primary text-white hover:bg-guys-secondary">
+                  Go to Feed
+                </Button>
+              </Link>
+              {user?.isAdmin && (
+                <Link to="/admin">
+                  <Button variant="outline">
+                    Admin
+                  </Button>
+                </Link>
+              )}
+            </>
           ) : (
             <Link to="/auth">
               <Button className="bg-guys-primary text-white hover:bg-guys-secondary">
@@ -86,6 +99,9 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* Display ad banner at the bottom if ads are enabled */}
+      {settings?.showAds && <AdBanner size="small" />}
     </div>
   );
 };

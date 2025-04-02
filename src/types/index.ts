@@ -11,6 +11,7 @@ export interface User {
   address?: string;
   joinDate?: string;
   postsCount?: number;
+  isAdmin?: boolean; // Added isAdmin field
 }
 
 export interface Post {
@@ -55,4 +56,8 @@ export interface MessageThread {
   participants: User[];
   lastMessage: Message;
   unreadCount: number;
+}
+
+export interface AppSettings {
+  showAds: boolean;
 }

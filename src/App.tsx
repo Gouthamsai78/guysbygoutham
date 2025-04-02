@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/auth";
 import { NotificationProvider } from "./contexts/notification";
+import { SettingsProvider } from "./contexts/settings";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
@@ -16,6 +17,7 @@ import CreatePost from "./pages/CreatePost";
 import NotFound from "./pages/NotFound";
 import EnhancedPostDetail from "./pages/EnhancedPostDetail";
 import Notifications from "./pages/Notifications";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +31,25 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
+  }
+  
+  return children;
+};
+
+// Admin route component
+const AdminRoute = ({ children }: { children: JSX.Element }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
+  
+  if (!user?.isAdmin) {
+    return <Navigate to="/home" replace />;
   }
   
   return children;
@@ -61,6 +82,7 @@ const AppRoutes = () => {
       <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
       <Route path="/post/:id" element={<ProtectedRoute><EnhancedPostDetail /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+      <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -71,11 +93,13 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <NotificationProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
+          <SettingsProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </SettingsProvider>
         </NotificationProvider>
       </AuthProvider>
     </TooltipProvider>
