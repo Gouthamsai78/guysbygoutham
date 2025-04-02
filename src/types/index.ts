@@ -47,7 +47,7 @@ export interface Message {
   replyToId?: string;
   fileUrl?: string;
   fileType?: string;
-  expiresAt?: string;  // The expiresAt field is now properly defined
+  expiresAt?: string;
 }
 
 export interface MessageThread {

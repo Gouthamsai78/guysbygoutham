@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Message, MessageThread, User } from "@/types";
 import { toast } from "sonner";
@@ -107,7 +106,8 @@ export const getMessageThreads = async (userId: string): Promise<MessageThread[]
           delivered: latestMessage.delivered || false,
           replyToId: latestMessage.reply_to_id,
           fileUrl: latestMessage.file_url || undefined,
-          fileType: latestMessage.file_type || undefined
+          fileType: latestMessage.file_type || undefined,
+          expiresAt: latestMessage.expires_at || undefined
         };
         
         // Check if there are unread messages
