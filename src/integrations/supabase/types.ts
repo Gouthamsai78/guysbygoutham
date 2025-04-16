@@ -340,9 +340,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_table_exists: {
+        Args: { table_name: string }
+        Returns: boolean
+      }
+      create_settings_table: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       decrement: {
         Args: { row_count: number }
         Returns: number
+      }
+      get_user_settings: {
+        Args: { user_id_param: string }
+        Returns: Json
       }
       increment: {
         Args: { row_count: number }
@@ -355,6 +367,10 @@ export type Database = {
       mark_message_delivered: {
         Args: { message_id: string }
         Returns: undefined
+      }
+      set_user_settings: {
+        Args: { user_id_param: string; settings_param: Json }
+        Returns: boolean
       }
     }
     Enums: {

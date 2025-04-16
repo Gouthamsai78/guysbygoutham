@@ -36,7 +36,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           
           // Check if the user_settings table exists
           const { data: tableExists, error: tableCheckError } = await supabase.rpc(
-            'check_table_exists', 
+            'check_table_exists',
             { table_name: 'user_settings' }
           );
 
@@ -54,7 +54,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           
           if (!error && data) {
             // Parse the JSONB data returned from PostgreSQL
-            const fetchedSettings = { ...defaultSettings, ...data };
+            const fetchedSettings = typeof data === 'object' ? { ...defaultSettings, ...data } : defaultSettings;
             setSettings(fetchedSettings);
             localStorage.setItem(`settings_${user.id}`, JSON.stringify(fetchedSettings));
           } else if (error) {
