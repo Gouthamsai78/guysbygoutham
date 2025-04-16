@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   username: string;
@@ -61,4 +60,35 @@ export interface MessageThread {
 export interface AppSettings {
   showAds: boolean;
   reduceAnimations?: boolean;
+}
+
+declare global {
+  interface Database {
+    public: {
+      Tables: {
+        // ... existing tables
+      };
+      Functions: {
+        check_table_exists: {
+          Args: { table_name: string };
+          Returns: boolean;
+        };
+        create_settings_table: {
+          Args: Record<string, never>;
+          Returns: void;
+        };
+        get_user_settings: {
+          Args: { user_id_param: string };
+          Returns: { settings: AppSettings };
+        };
+        set_user_settings: {
+          Args: { 
+            user_id_param: string;
+            settings_param: AppSettings;
+          };
+          Returns: { success: boolean };
+        };
+      };
+    };
+  }
 }

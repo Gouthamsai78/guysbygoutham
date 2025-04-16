@@ -109,7 +109,7 @@ const App = () => {
     defaultOptions: {
       queries: {
         staleTime: 1000 * 60, // 1 minute
-        cacheTime: 1000 * 60 * 5, // 5 minutes
+        gcTime: 1000 * 60 * 5, // 5 minutes (replacing cacheTime which is deprecated)
         refetchOnWindowFocus: false,
       },
     }

@@ -34,26 +34,37 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setSettings(JSON.parse(storedSettings));
           }
           
+          // Check if the user_settings table exists
+          const { error: tableCheckError } = await supabase.rpc('check_table_exists', { 
+            table_name: 'user_settings'
+          });
+
+          // If the table doesn't exist, create it
+          if (tableCheckError) {
+            console.log('Creating user_settings table');
+            await supabase.rpc('create_settings_table');
+          }
+          
           // Then fetch from database for the most up-to-date settings
-          const { data, error } = await supabase
-            .from('user_settings')
-            .select('settings')
-            .eq('user_id', user.id)
-            .single();
+          const { data, error } = await supabase.rpc('get_user_settings', {
+            user_id_param: user.id
+          });
           
           if (!error && data) {
             const fetchedSettings = { ...defaultSettings, ...data.settings };
             setSettings(fetchedSettings);
             localStorage.setItem(`settings_${user.id}`, JSON.stringify(fetchedSettings));
-          } else if (error && error.code === 'PGRST116') {
-            // If no settings found, create default settings
-            await supabase
-              .from('user_settings')
-              .insert([{ user_id: user.id, settings: defaultSettings }]);
+          } else if (error) {
+            console.error('Error loading settings:', error);
+            // If no settings found, create default settings using RPC
+            await supabase.rpc('set_user_settings', { 
+              user_id_param: user.id,
+              settings_param: defaultSettings
+            });
             localStorage.setItem(`settings_${user.id}`, JSON.stringify(defaultSettings));
           }
         } catch (error) {
-          console.error('Error loading settings:', error);
+          console.error('Error in settings initialization:', error);
         }
       }
     };
@@ -76,21 +87,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const savePreferences = async () => {
-    if (!user) return;
+    if (!user) return Promise.reject(new Error('User not authenticated'));
     
     try {
       localStorage.setItem(`settings_${user.id}`, JSON.stringify(settings));
       
-      await supabase
-        .from('user_settings')
-        .upsert([
-          {
-            user_id: user.id,
-            settings
-          }
-        ], {
-          onConflict: 'user_id'
-        });
+      await supabase.rpc('set_user_settings', {
+        user_id_param: user.id,
+        settings_param: settings
+      });
       
       return Promise.resolve();
     } catch (error) {
@@ -113,7 +118,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       value={{ 
         showAds: settings.showAds,
         toggleShowAds,
-        reduceAnimations: settings.reduceAnimations,
+        reduceAnimations: settings.reduceAnimations || false,
         toggleReduceAnimations,
         savePreferences
       }}

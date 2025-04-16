@@ -8,7 +8,7 @@ import AdBanner from "@/components/AdBanner";
 
 const Index = () => {
   const { isAuthenticated, user } = useAuth();
-  const { settings } = useSettings();
+  const { showAds } = useSettings();
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-guys-primary/5 to-white pb-20">
@@ -101,7 +101,7 @@ const Index = () => {
       </footer>
 
       {/* Display ad banner at the bottom if ads are enabled */}
-      {settings?.showAds && <AdBanner size="small" />}
+      {showAds && <AdBanner size="small" />}
     </div>
   );
 };
