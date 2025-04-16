@@ -58,7 +58,6 @@ export interface MessageThread {
 }
 
 export interface AppSettings {
-  showAds: boolean;
   reduceAnimations?: boolean;
   [key: string]: any; // Add index signature to make it compatible with Json type
 }

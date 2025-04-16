@@ -5,15 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/auth';
 
 interface SettingsContextType {
-  showAds: boolean;
-  toggleShowAds: () => void;
   reduceAnimations: boolean;
   toggleReduceAnimations: () => void;
   savePreferences: () => Promise<void>;
 }
 
 const defaultSettings: AppSettings = {
-  showAds: true,
   reduceAnimations: false
 };
 
@@ -77,13 +74,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     loadSettings();
   }, [isAuthenticated, user]);
-
-  const toggleShowAds = () => {
-    setSettings(prev => ({
-      ...prev,
-      showAds: !prev.showAds
-    }));
-  };
   
   const toggleReduceAnimations = () => {
     setSettings(prev => ({
@@ -129,8 +119,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   return (
     <SettingsContext.Provider 
       value={{ 
-        showAds: settings.showAds,
-        toggleShowAds,
         reduceAnimations: settings.reduceAnimations || false,
         toggleReduceAnimations,
         savePreferences

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Search } from "lucide-react";
 import CustomNavbar from "@/components/CustomNavbar";
@@ -15,7 +16,6 @@ import {
   subscribeToMessages
 } from "@/services/messageService";
 import { toast } from "sonner";
-import AdBanner from "@/components/AdBanner";
 
 const Messages = () => {
   const { user } = useAuth();
@@ -212,27 +212,16 @@ const Messages = () => {
               </div>
               
               <div className="flex-grow overflow-y-auto">
-                <AdBanner 
-                  variant="secondary" 
-                  size="small" 
-                  label="Sponsored"
-                  adContent={
-                    <div className="flex items-center justify-center w-full">
-                      <span className="font-medium text-sm">Try Premium</span>
-                    </div>
-                  }
-                />
-                
                 {loading ? (
                   <div className="flex justify-center p-8">
                     <div className="animate-pulse text-gray-500">Loading conversations...</div>
                   </div>
                 ) : filteredThreads.length > 0 ? (
-                  filteredThreads.map((thread, index) => {
+                  filteredThreads.map((thread) => {
                     const otherUser = thread.participants.find((p) => p.id !== user.id);
                     if (!otherUser) return null;
                     
-                    const threadItem = (
+                    return (
                       <div
                         key={thread.id}
                         className={cn(
@@ -270,22 +259,6 @@ const Messages = () => {
                         </div>
                       </div>
                     );
-                    
-                    if ((index + 1) % 3 === 0 && index !== 0) {
-                      return (
-                        <React.Fragment key={thread.id}>
-                          {threadItem}
-                          <AdBanner 
-                            key={`ad-${index}`}
-                            variant="tertiary" 
-                            size="small"
-                            className="mx-2 my-2" 
-                          />
-                        </React.Fragment>
-                      );
-                    }
-                    
-                    return threadItem;
                   })
                 ) : (
                   <div className="p-8 text-center">
@@ -295,12 +268,6 @@ const Messages = () => {
                     </p>
                   </div>
                 )}
-                
-                <AdBanner 
-                  variant="primary" 
-                  size="medium" 
-                  className="m-2 mt-auto"
-                />
               </div>
             </div>
             
@@ -336,13 +303,6 @@ const Messages = () => {
                   <p className="text-sm text-gray-400">
                     Note: You can only message users that you follow.
                   </p>
-                  
-                  <AdBanner 
-                    variant="secondary" 
-                    size="large" 
-                    className="mt-6 max-w-md w-full"
-                    label="Featured"
-                  />
                 </div>
               )}
             </div>

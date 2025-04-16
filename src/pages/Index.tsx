@@ -3,15 +3,12 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth";
-import { useSettings } from "@/contexts/settings";
-import AdBanner from "@/components/AdBanner";
 
 const Index = () => {
   const { isAuthenticated, user } = useAuth();
-  const { showAds } = useSettings();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-guys-primary/5 to-white pb-20">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-guys-primary/5 to-white">
       <header className="py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-guys-primary">Guys</h1>
@@ -99,9 +96,6 @@ const Index = () => {
           </div>
         </div>
       </footer>
-
-      {/* Display ad banner at the bottom if ads are enabled */}
-      {showAds && <AdBanner size="small" />}
     </div>
   );
 };

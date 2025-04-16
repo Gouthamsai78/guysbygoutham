@@ -305,6 +305,7 @@ export type Database = {
           following_count: number | null
           full_name: string | null
           id: string
+          is_admin: boolean | null
           profile_picture: string | null
           updated_at: string | null
           username: string
@@ -317,6 +318,7 @@ export type Database = {
           following_count?: number | null
           full_name?: string | null
           id: string
+          is_admin?: boolean | null
           profile_picture?: string | null
           updated_at?: string | null
           username: string
@@ -329,6 +331,7 @@ export type Database = {
           following_count?: number | null
           full_name?: string | null
           id?: string
+          is_admin?: boolean | null
           profile_picture?: string | null
           updated_at?: string | null
           username?: string
