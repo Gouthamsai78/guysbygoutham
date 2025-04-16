@@ -35,32 +35,38 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           
           // Check if the user_settings table exists
-          const { error: tableCheckError } = await supabase.rpc('check_table_exists', { 
-            table_name: 'user_settings'
-          });
+          const { data: tableExists, error: tableCheckError } = await supabase.rpc(
+            'check_table_exists', 
+            { table_name: 'user_settings' }
+          );
 
           // If the table doesn't exist, create it
-          if (tableCheckError) {
+          if (!tableExists || tableCheckError) {
             console.log('Creating user_settings table');
             await supabase.rpc('create_settings_table');
           }
           
           // Then fetch from database for the most up-to-date settings
-          const { data, error } = await supabase.rpc('get_user_settings', {
-            user_id_param: user.id
-          });
+          const { data, error } = await supabase.rpc(
+            'get_user_settings',
+            { user_id_param: user.id }
+          );
           
           if (!error && data) {
-            const fetchedSettings = { ...defaultSettings, ...data.settings };
+            // Parse the JSONB data returned from PostgreSQL
+            const fetchedSettings = { ...defaultSettings, ...data };
             setSettings(fetchedSettings);
             localStorage.setItem(`settings_${user.id}`, JSON.stringify(fetchedSettings));
           } else if (error) {
             console.error('Error loading settings:', error);
             // If no settings found, create default settings using RPC
-            await supabase.rpc('set_user_settings', { 
-              user_id_param: user.id,
-              settings_param: defaultSettings
-            });
+            await supabase.rpc(
+              'set_user_settings', 
+              { 
+                user_id_param: user.id,
+                settings_param: defaultSettings
+              }
+            );
             localStorage.setItem(`settings_${user.id}`, JSON.stringify(defaultSettings));
           }
         } catch (error) {
@@ -92,10 +98,17 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       localStorage.setItem(`settings_${user.id}`, JSON.stringify(settings));
       
-      await supabase.rpc('set_user_settings', {
-        user_id_param: user.id,
-        settings_param: settings
-      });
+      const { error } = await supabase.rpc(
+        'set_user_settings',
+        {
+          user_id_param: user.id,
+          settings_param: settings
+        }
+      );
+      
+      if (error) {
+        throw error;
+      }
       
       return Promise.resolve();
     } catch (error) {

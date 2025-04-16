@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   username: string;
@@ -79,14 +80,30 @@ declare global {
         };
         get_user_settings: {
           Args: { user_id_param: string };
-          Returns: { settings: AppSettings };
+          Returns: Record<string, any>;
         };
         set_user_settings: {
           Args: { 
             user_id_param: string;
-            settings_param: AppSettings;
+            settings_param: Record<string, any>;
           };
-          Returns: { success: boolean };
+          Returns: boolean;
+        };
+        decrement: {
+          Args: { row_count: number };
+          Returns: number;
+        };
+        increment: {
+          Args: { row_count: number };
+          Returns: number;
+        };
+        increment_post_view: {
+          Args: { post_id: string };
+          Returns: void;
+        };
+        mark_message_delivered: {
+          Args: { message_id: string };
+          Returns: void;
         };
       };
     };

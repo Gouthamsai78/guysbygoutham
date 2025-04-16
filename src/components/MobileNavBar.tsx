@@ -34,6 +34,26 @@ const MobileNavBar = () => {
       </Link>
       
       <Link
+        to="/messages"
+        className={`flex flex-col items-center p-2 ${
+          isActive("/messages") ? "text-guys-primary" : "text-gray-500"
+        }`}
+        aria-label="Messages"
+      >
+        <Search size={24} />
+        <span className="text-xs mt-1">Messages</span>
+      </Link>
+      
+      <Link
+        to="/create-post"
+        className="flex flex-col items-center p-2 text-gray-500"
+        aria-label="Create Post"
+      >
+        <PlusSquare size={24} />
+        <span className="text-xs mt-1">Create</span>
+      </Link>
+      
+      <Link
         to="/notifications"
         className={`flex flex-col items-center p-2 relative ${
           isActive("/notifications") ? "text-guys-primary" : "text-gray-500"
@@ -47,26 +67,6 @@ const MobileNavBar = () => {
           </span>
         )}
         <span className="text-xs mt-1">Activity</span>
-      </Link>
-      
-      <Link
-        to="/create-post"
-        className="flex flex-col items-center p-2 text-gray-500"
-        aria-label="Create Post"
-      >
-        <PlusSquare size={24} />
-        <span className="text-xs mt-1">Create</span>
-      </Link>
-      
-      <Link
-        to="/messages"
-        className={`flex flex-col items-center p-2 ${
-          isActive("/messages") ? "text-guys-primary" : "text-gray-500"
-        }`}
-        aria-label="Messages"
-      >
-        <Search size={24} />
-        <span className="text-xs mt-1">Messages</span>
       </Link>
       
       <Link
