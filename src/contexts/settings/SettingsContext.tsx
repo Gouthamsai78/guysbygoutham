@@ -64,7 +64,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               'set_user_settings', 
               { 
                 user_id_param: user.id,
-                settings_param: defaultSettings
+                settings_param: defaultSettings as Record<string, any>
               }
             );
             localStorage.setItem(`settings_${user.id}`, JSON.stringify(defaultSettings));
@@ -102,7 +102,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         'set_user_settings',
         {
           user_id_param: user.id,
-          settings_param: settings
+          settings_param: settings as Record<string, any>
         }
       );
       

@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   username: string;
@@ -61,6 +60,7 @@ export interface MessageThread {
 export interface AppSettings {
   showAds: boolean;
   reduceAnimations?: boolean;
+  [key: string]: any; // Add index signature to make it compatible with Json type
 }
 
 declare global {
