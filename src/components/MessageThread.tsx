@@ -267,13 +267,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
       </div>
 
       <div className="flex-grow overflow-y-auto p-4 space-y-4">
-        <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Advertisement</p>
-          <div className="bg-gradient-to-r from-pink-100 to-purple-100 h-16 flex items-center justify-center rounded">
-            <span className="text-pink-600 font-medium">Your Ad Here</span>
-          </div>
-        </div>
-        
         {messages.length > 0 ? (
           messages.map((message) => {
             const isCurrentUser = message.senderId === user.id;
@@ -407,13 +400,6 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             </div>
           </div>
         )}
-        
-        <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Sponsored</p>
-          <div className="bg-gradient-to-r from-blue-100 to-green-100 h-12 flex items-center justify-center rounded">
-            <span className="text-blue-600 font-medium">Download Our App</span>
-          </div>
-        </div>
         
         <div ref={messagesEndRef} />
       </div>

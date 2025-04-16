@@ -11,7 +11,7 @@ import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Admin: React.FC = () => {
-  const { showAds, toggleShowAds, reduceAnimations, toggleReduceAnimations, savePreferences } = useSettings();
+  const { reduceAnimations, toggleReduceAnimations, savePreferences } = useSettings();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
 
@@ -53,9 +53,8 @@ const Admin: React.FC = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid grid-cols-3 mb-6">
+        <TabsList className="grid grid-cols-2 mb-6">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="advertisements">Advertisements</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
         
@@ -71,31 +70,6 @@ const Admin: React.FC = () => {
               <p className="text-sm text-gray-500">
                 More settings coming soon...
               </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="advertisements">
-          <Card>
-            <CardHeader>
-              <CardTitle>Advertisement Settings</CardTitle>
-              <CardDescription>
-                Control advertisement visibility across the platform
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Show Advertisements</h3>
-                  <p className="text-sm text-gray-500">
-                    Toggle the visibility of ads across the platform
-                  </p>
-                </div>
-                <Switch 
-                  checked={showAds} 
-                  onCheckedChange={toggleShowAds} 
-                />
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
